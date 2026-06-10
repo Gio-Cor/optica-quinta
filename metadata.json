@@ -1,0 +1,6 @@
+{
+  "name": "Óptica Quinta",
+  "description": "Sitio web para óptica especializada en cristales Rodenstock. Incluye catálogo de productos, sistema de gestión de citas y un asistente virtual inteligente.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}

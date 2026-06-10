@@ -1,0 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Montserrat:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Montserrat", sans-serif;
+  
+  --color-paper: #ffffff;
+  --color-ink: #1a1a1a;
+  --color-accent: #5F3B8F;
+  --color-accent-light: #F4EFFF;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-paper text-ink;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
