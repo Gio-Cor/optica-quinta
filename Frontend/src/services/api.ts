@@ -1,7 +1,5 @@
 import { supabase } from '../supabaseClient';
 import { Product, Appointment, User, LensOption, WorkOrder } from '../types';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 export const api = {
   getProducts: async (): Promise<Product[]> => {
@@ -13,17 +11,25 @@ export const api = {
   loginUser: async (email: string, password: string): Promise<{ token: string, user: User }> => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
-    
-    // Construir el usuario desde los metadatos de Supabase
+
+    // Obtener el role desde public.users usando auth_id
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role, full_name, address, payment_method, id')
+      .eq('auth_id', data.user.id)
+      .single();
+
+    if (userError || !userData) throw new Error('No se encontró el perfil del usuario');
+
     const user: User = {
       id: data.user.id,
       email: data.user.email || '',
-      role: data.user.user_metadata?.role || 'user',
-      full_name: data.user.user_metadata?.full_name || '',
-      address: data.user.user_metadata?.address || '',
-      payment_method: data.user.user_metadata?.payment_method || ''
+      role: userData.role,
+      full_name: userData.full_name || '',
+      address: userData.address || '',
+      payment_method: userData.payment_method || ''
     };
-    
+
     return { token: data.session.access_token, user };
   },
 
@@ -69,34 +75,31 @@ export const api = {
   },
 
   downloadMonthlyReport: async (): Promise<void> => {
-    // Generar PDF en el cliente usando jspdf
-    const { data: orders, error } = await supabase.from('work_orders').select('*');
-    if (error) throw new Error('Error al obtener datos para el reporte: ' + error.message);
-    
-    const doc = new jsPDF();
-    doc.text('Reporte Mensual de Ventas', 14, 15);
-    
-    const tableData = (orders || []).map((o: any) => [
-      o.id,
-      new Date(o.created_at).toLocaleDateString(),
-      `$${o.total_amount}`,
-      o.status
-    ]);
-    
-    autoTable(doc, {
-      startY: 25,
-      head: [['ID', 'Fecha', 'Monto Total', 'Estado']],
-      body: tableData,
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No hay sesión activa');
+
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/monthly-sales/pdf`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      }
     });
-    
-    doc.save('ventas_mensuales.pdf');
+
+    if (!response.ok) throw new Error('Error al generar el reporte');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ventas_mensuales.pdf';
+    a.click();
+    window.URL.revokeObjectURL(url);
   },
 
   checkout: async (items: { productId: number; quantity: number; price: number; lensOptionName?: string; lensAddonPrice?: number }[], total_amount: number): Promise<void> => {
-    // 1. Insertar la orden
     const { data: session } = await supabase.auth.getSession();
     const userId = session?.session?.user?.id;
-    
+
     const { data: order, error: orderError } = await supabase.from('work_orders').insert([{
       total_amount,
       balance_due: total_amount,
@@ -104,10 +107,9 @@ export const api = {
       user_id: userId || null,
       status: 'pending'
     }]).select().single();
-    
+
     if (orderError) throw new Error(orderError.message);
-    
-    // 2. Insertar los detalles
+
     const details = items.map(item => ({
       work_order_id: order.id,
       product_id: item.productId,
@@ -116,7 +118,7 @@ export const api = {
       lens_option_name: item.lensOptionName,
       lens_addon_price: item.lensAddonPrice || 0
     }));
-    
+
     const { error: detailsError } = await supabase.from('detalles_orden').insert(details);
     if (detailsError) throw new Error(detailsError.message);
   },

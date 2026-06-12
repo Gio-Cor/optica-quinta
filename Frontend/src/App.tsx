@@ -14,12 +14,14 @@ import { ProductDetailModal } from './components/ProductDetailModal';
 import { CartPage } from './components/CartPage';
 import { AuthForm } from './components/AuthForm';
 import { UserProfile } from './components/UserProfile';
+import { supabase } from './supabaseClient';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [tryOnProduct, setTryOnProduct] = useState<Product | null>(null);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [loggedInUser, setLoggedInUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem('adminUser');
@@ -31,13 +33,37 @@ export default function App() {
   });
 
   useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      if (e.state && e.state.productId) {
-        // Technically we would need to fetch the product by ID here
-        // For now, we clear it if they hit back to the main page
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role, full_name, address, payment_method, id')
+          .eq('auth_id', session.user.id)
+          .single();
+
+        if (userData) {
+          const user: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            role: userData.role,
+            full_name: userData.full_name || '',
+            address: userData.address || '',
+            payment_method: userData.payment_method || ''
+          };
+          setLoggedInUser(user);
+          localStorage.setItem('adminUser', JSON.stringify(user));
+          localStorage.setItem('adminToken', session.access_token);
+        }
       } else {
-        setDetailProduct(null);
+        setLoggedInUser(null);
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
       }
+      setSessionLoading(false);
+    });
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (!e.state?.productId) setDetailProduct(null);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -55,7 +81,6 @@ export default function App() {
   };
 
   const handleAddToCart = (product: Product, quantity: number = 1, lensOption?: LensOption) => {
-    // If no lens option provided, assume the default 'Solo Armazón'
     const defaultLensOption: LensOption = { id: 1, name: 'Solo Armazón', price_add: 0, is_active: true };
     const optionToUse = lensOption || defaultLensOption;
 
@@ -81,8 +106,8 @@ export default function App() {
     switch (activeTab) {
       case 'catalog': return <Catalog onTryOn={setTryOnProduct} onAddToCart={handleAddToCart} onViewDetail={handleOpenDetail} />;
       case 'cart': return (
-        <CartPage 
-          items={cartItems} 
+        <CartPage
+          items={cartItems}
           onRemove={handleRemoveFromCart}
           onUpdateQuantity={(index, delta) => {
             const newCart = [...cartItems];
@@ -100,7 +125,16 @@ export default function App() {
       );
       case 'appointments': return <AppointmentSection />;
       case 'contact': return <ContactSection />;
-      case 'admin': 
+      case 'admin':
+        if (sessionLoading) return (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-ink/60 text-sm">Verificando sesión...</p>
+            </div>
+          </div>
+        );
+
         if (!loggedInUser) {
           return <AuthForm onLogin={(token, user) => {
             setLoggedInUser(user);
@@ -108,10 +142,10 @@ export default function App() {
             localStorage.setItem('adminUser', JSON.stringify(user));
           }} />;
         }
-        
+
         if (loggedInUser.role === 'admin') {
-          return <AdminPanel 
-            loggedInUser={loggedInUser} 
+          return <AdminPanel
+            loggedInUser={loggedInUser}
             onLogout={() => {
               setLoggedInUser(null);
               localStorage.removeItem('adminToken');
@@ -120,8 +154,8 @@ export default function App() {
           />;
         }
 
-        return <UserProfile 
-          user={loggedInUser} 
+        return <UserProfile
+          user={loggedInUser}
           onUpdateUser={(updatedUser) => {
             setLoggedInUser(updatedUser);
             localStorage.setItem('adminUser', JSON.stringify(updatedUser));
@@ -132,6 +166,7 @@ export default function App() {
             localStorage.removeItem('adminUser');
           }}
         />;
+
       default: return (
         <>
           <Hero onShopNow={() => setActiveTab('catalog')} />
@@ -156,19 +191,19 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <Navbar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         cartCount={cartItems.reduce((acc, item) => acc + item.quantity, 0)}
         onOpenCart={() => setActiveTab('cart')}
         loggedInUser={loggedInUser}
         onLogout={() => {
-            setLoggedInUser(null);
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminUser');
+          setLoggedInUser(null);
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
         }}
       />
-      
+
       <main>
         {renderContent()}
       </main>
@@ -178,9 +213,9 @@ export default function App() {
 
       <AnimatePresence>
         {tryOnProduct && (
-          <VirtualTryOnModal 
-            product={tryOnProduct} 
-            onClose={() => setTryOnProduct(null)} 
+          <VirtualTryOnModal
+            product={tryOnProduct}
+            onClose={() => setTryOnProduct(null)}
           />
         )}
         {detailProduct && (
@@ -203,7 +238,7 @@ export default function App() {
           />
         )}
       </AnimatePresence>
-      
+
       <style>{`
         @keyframes marquee {
           0% { transform: translateX(0); }
@@ -216,4 +251,3 @@ export default function App() {
     </div>
   );
 }
-
