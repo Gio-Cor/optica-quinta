@@ -30,7 +30,7 @@ export const Chatbot = () => {
         content: m.text
       }));
 
-      // 3. Invocamos el conector que creamos con el nuevo endpoint y modelo 'openai/o4-mini'
+      // 3. Invocamos el conector que creamos con el nuevo endpoint y modelo 'gpt-4o-mini'
       const response = await chatWithGithubModels(userMsg, history);
 
       // 4. Agregamos la respuesta del asistente virtual al estado de la interfaz
@@ -79,7 +79,7 @@ export const Chatbot = () => {
                 </div>
               ))}
 
-              {/* Animación de carga cuando el modelo o4-mini procesa */}
+              {/* Animación de carga cuando el modelo gpt-4o-mini procesa */}
               {isTyping && (
                 <div className="flex justify-start">
                   <div className="p-4 rounded-2xl bg-paper text-ink rounded-bl-none">

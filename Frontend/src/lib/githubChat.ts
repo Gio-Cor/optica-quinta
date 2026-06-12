@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
 const endpoint = "https://models.github.ai/inference";
-const modelName = "openai/o4-mini";
+const modelName = "gpt-4o-mini";
 
 const openai = new OpenAI({
     baseURL: endpoint,
