@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertCircle, X, Maximize2, ShoppingBag, Loader2 } from 'lucide-react';
+import { AlertCircle, X, Maximize2, ShoppingBag, Loader2, Camera, Upload } from 'lucide-react';
 import { Product } from '../types';
 
 // Dynamic script loader for ThreeJS & GLTFLoader
@@ -27,6 +27,39 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const [faceLandmarker, setFaceLandmarker] = useState<any>(null);
   const [scaleAdjustment, setScaleAdjustment] = useState(1.95);
   const [faceDetected, setFaceDetected] = useState(false);
+  const [captureMode, setCaptureMode] = useState<'live' | 'photo'>('live');
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const staticImageRef = useRef<HTMLImageElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cachedResultsRef = useRef<any>(null);
+  
+  // Handlers for taking and uploading photos
+  const handleTakePhoto = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      setImageSrc(canvas.toDataURL('image/jpeg'));
+      setCaptureMode('photo');
+      cachedResultsRef.current = null; // reset cache
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImageSrc(event.target?.result as string);
+        setCaptureMode('photo');
+        cachedResultsRef.current = null; // reset cache
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   
   // 1. Determine frame style type based on the specific catalog product
   const getStyleType = () => {
@@ -332,16 +365,27 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     function predictLoop() {
       if (!active) return;
 
-      const video = videoRef.current;
-      if (video && video.readyState >= 3) { // HAVE_FUTURE_DATA or higher
-        const currentTime = video.currentTime;
-        if (currentTime !== lastVideoTime) {
-          lastVideoTime = currentTime;
-          
-          try {
-            const results = faceLandmarker.detectForVideo(video, performance.now());
-            
-            if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+      try {
+        let results: any = null;
+
+        if (captureMode === 'live') {
+          const video = videoRef.current;
+          if (video && video.readyState >= 3) {
+            const currentTime = video.currentTime;
+            if (currentTime !== lastVideoTime) {
+              lastVideoTime = currentTime;
+              results = faceLandmarker.detectForVideo(video, performance.now());
+            }
+          }
+        } else if (captureMode === 'photo' && staticImageRef.current) {
+          if (!cachedResultsRef.current) {
+            // Only detect once per image to save CPU
+            cachedResultsRef.current = faceLandmarker.detect(staticImageRef.current);
+          }
+          results = cachedResultsRef.current;
+        }
+
+        if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
               const landmarks = results.faceLandmarks[0];
               const leftEye = landmarks[33];
               const rightEye = landmarks[263];
@@ -442,7 +486,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                 setFaceDetected(false);
               }
             } else {
-              // Hide both overlays
               if (glassesModelRef.current) {
                 glassesModelRef.current.position.set(-1000, -1000, 0);
                 if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
@@ -452,10 +495,18 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
               setGlassesTransform(prev => ({ ...prev, visible: false }));
               setFaceDetected(false);
             }
-          } catch (e) {
-            console.error("Frame tracking error:", e);
+          } else {
+            if (glassesModelRef.current) {
+              glassesModelRef.current.position.set(-1000, -1000, 0);
+              if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
+                threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
+              }
+            }
+            setGlassesTransform(prev => ({ ...prev, visible: false }));
+            setFaceDetected(false);
           }
-        }
+      } catch (e) {
+        console.error("Frame tracking error:", e);
       }
       
       animationFrameId = requestAnimationFrame(predictLoop);
@@ -469,7 +520,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [faceLandmarker, stream, scaleAdjustment]);
+  }, [faceLandmarker, stream, scaleAdjustment, captureMode]);
 
   // Helper to render beautiful, 100% transparent vector glasses matching the product style
   const renderGlassesSVG = () => {
@@ -657,17 +708,26 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
             <>
               {/* Unified Mirrored Layer Container */}
               <div className="absolute inset-0 w-full h-full scale-x-[-1] overflow-hidden pointer-events-none">
-                {/* Camera View (Unmirrored in CSS, mirrored by parent layer container) */}
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline 
-                  webkitPlaysInline={true}
-                  muted 
-                  className="w-full h-full object-cover pointer-events-auto"
-                />
+                {/* Camera or Image View */}
+                {captureMode === 'live' ? (
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    webkitPlaysInline={true}
+                    muted 
+                    className="w-full h-full object-cover pointer-events-auto"
+                  />
+                ) : (
+                  <img
+                    ref={staticImageRef}
+                    src={imageSrc!}
+                    alt="Captured"
+                    className="w-full h-full object-cover pointer-events-auto"
+                  />
+                )}
 
-                {/* Live 3D Overlay Canvas (always mounted if model exists, hidden via CSS when vector is active) */}
+                {/* Live 3D Overlay Canvas */}
                 {product.model_3d && (
                   <canvas 
                     ref={threeCanvasCallbackRef} 
@@ -732,6 +792,34 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                 <Maximize2 className="w-4 h-4 opacity-40" />
                 <span>Detección MediaPipe activa</span>
               </div>
+
+              {/* Source Selector (Camera / Photo) */}
+              {!loadingModel && !error && (
+                <div className="pt-3 md:pt-4 border-t border-ink/5">
+                  <span className="text-[11px] text-ink/60 font-semibold block mb-2">Fuente de Imagen</span>
+                  <div className="grid grid-cols-3 gap-2 bg-ink/5 p-1 rounded-xl">
+                    <button
+                      onClick={() => setCaptureMode('live')}
+                      className={`py-1.5 text-xs font-bold rounded-lg transition-all ${captureMode === 'live' ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'}`}
+                    >
+                      En vivo
+                    </button>
+                    <button
+                      onClick={handleTakePhoto}
+                      className={`py-1.5 text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition-all text-ink/60 hover:text-ink`}
+                    >
+                      <Camera className="w-3 h-3" /> Foto
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`py-1.5 text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition-all ${captureMode === 'photo' && imageSrc ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'}`}
+                    >
+                      <Upload className="w-3 h-3" /> Subir
+                    </button>
+                  </div>
+                  <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                </div>
+              )}
 
               {/* Try-On Mode Toggle Selector */}
               {!loadingModel && !error && (product.ar_image || product.model_3d) && (
