@@ -378,11 +378,13 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
             }
           }
         } else if (captureMode === 'photo' && staticImageRef.current) {
-          if (!cachedResultsRef.current) {
-            // Only detect once per image to save CPU
-            cachedResultsRef.current = faceLandmarker.detect(staticImageRef.current);
+          if (staticImageRef.current.complete && staticImageRef.current.naturalWidth > 0) {
+            if (!cachedResultsRef.current) {
+              // Only detect once per image to save CPU
+              cachedResultsRef.current = faceLandmarker.detect(staticImageRef.current);
+            }
+            results = cachedResultsRef.current;
           }
-          results = cachedResultsRef.current;
         }
 
         if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
