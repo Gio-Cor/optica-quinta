@@ -48,14 +48,14 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
       
       const totalAmount = calculateTotal();
       
-      await api.checkout(checkoutItems, totalAmount);
+      // Obtener la URL de Stripe desde el backend
+      const checkoutUrl = await api.checkout(checkoutItems, totalAmount);
       
-      alert('¡Gracias por tu compra! Tu orden ha sido procesada exitosamente.');
-      onCheckout(); // Clears cart and redirects
+      // Redirigir al usuario a Stripe
+      window.location.href = checkoutUrl;
     } catch (error) {
       console.error(error);
       alert('Hubo un error al procesar tu compra. Por favor intenta nuevamente.');
-    } finally {
       setIsCheckingOut(false);
     }
   };

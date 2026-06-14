@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import PDFDocument from 'pdfkit';
 import { createClient } from '@supabase/supabase-js';
+import Stripe from 'stripe';
 
 dotenv.config();
 
@@ -144,6 +145,47 @@ app.get('/api/reports/monthly-sales/pdf', requireAdmin, async (req: Request, res
   } catch (err) {
     console.error('PDF Generation Error:', err);
     res.status(500).json({ error: 'Error al generar PDF' });
+  }
+});
+
+// Inicializar Stripe con la clave secreta
+// NOTA: Para un entorno de producción, asegúrate de colocar tu STRIPE_SECRET_KEY real en el archivo .env
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_placeholder', {
+  apiVersion: '2025-01-27.acacia',
+});
+
+app.post('/api/checkout/create-session', async (req: Request, res: Response) => {
+  try {
+    const { items, total_amount, userId } = req.body;
+
+    // Crear la sesión de checkout en Stripe
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: items.map((item: any) => ({
+        price_data: {
+          currency: 'clp', // Moneda: Pesos chilenos
+          product_data: {
+            name: `Lente ${item.productId} ${item.lensOptionName ? '+ ' + item.lensOptionName : ''}`,
+          },
+          // Stripe expects the unit amount in the smallest currency unit. For CLP, it's just the integer.
+          unit_amount: Math.round(item.price + (item.lensAddonPrice || 0)),
+        },
+        quantity: item.quantity,
+      })),
+      mode: 'payment',
+      // Redirecciones al terminar el pago
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?checkout=success`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?checkout=cancel`,
+      metadata: {
+        userId: userId || 'guest',
+        items: JSON.stringify(items.map((i: any) => ({ id: i.productId, qty: i.quantity })))
+      }
+    });
+
+    res.json({ url: session.url });
+  } catch (error: any) {
+    console.error('Error creando sesión de Stripe:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

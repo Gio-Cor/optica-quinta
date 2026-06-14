@@ -96,31 +96,29 @@ export const api = {
     window.URL.revokeObjectURL(url);
   },
 
-  checkout: async (items: { productId: number; quantity: number; price: number; lensOptionName?: string; lensAddonPrice?: number }[], total_amount: number): Promise<void> => {
+  checkout: async (items: { productId: number; quantity: number; price: number; lensOptionName?: string; lensAddonPrice?: number }[], total_amount: number): Promise<string> => {
     const { data: session } = await supabase.auth.getSession();
     const userId = session?.session?.user?.id;
 
-    const { data: order, error: orderError } = await supabase.from('work_orders').insert([{
-      total_amount,
-      balance_due: total_amount,
-      deposit_amount: 0,
-      user_id: userId || null,
-      status: 'pending'
-    }]).select().single();
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/checkout/create-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        items,
+        total_amount,
+        userId
+      })
+    });
 
-    if (orderError) throw new Error(orderError.message);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al procesar el pago');
+    }
 
-    const details = items.map(item => ({
-      work_order_id: order.id,
-      product_id: item.productId,
-      quantity: item.quantity,
-      price_at_time: item.price,
-      lens_option_name: item.lensOptionName,
-      lens_addon_price: item.lensAddonPrice || 0
-    }));
-
-    const { error: detailsError } = await supabase.from('detalles_orden').insert(details);
-    if (detailsError) throw new Error(detailsError.message);
+    const { url } = await response.json();
+    return url;
   },
 
   getLensOptions: async (): Promise<LensOption[]> => {
