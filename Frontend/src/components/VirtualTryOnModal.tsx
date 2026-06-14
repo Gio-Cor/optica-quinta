@@ -495,16 +495,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
               setGlassesTransform(prev => ({ ...prev, visible: false }));
               setFaceDetected(false);
             }
-          } else {
-            if (glassesModelRef.current) {
-              glassesModelRef.current.position.set(-1000, -1000, 0);
-              if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
-                threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
-              }
-            }
-            setGlassesTransform(prev => ({ ...prev, visible: false }));
-            setFaceDetected(false);
-          }
+
       } catch (e) {
         console.error("Frame tracking error:", e);
       }
