@@ -146,7 +146,8 @@ export default function App() {
         if (loggedInUser.role === 'admin') {
           return <AdminPanel
             loggedInUser={loggedInUser}
-            onLogout={() => {
+            onLogout={async () => {
+              await supabase.auth.signOut();
               setLoggedInUser(null);
               localStorage.removeItem('adminToken');
               localStorage.removeItem('adminUser');
@@ -160,7 +161,8 @@ export default function App() {
             setLoggedInUser(updatedUser);
             localStorage.setItem('adminUser', JSON.stringify(updatedUser));
           }}
-          onLogout={() => {
+          onLogout={async () => {
+            await supabase.auth.signOut();
             setLoggedInUser(null);
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminUser');
