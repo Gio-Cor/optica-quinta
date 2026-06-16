@@ -13,9 +13,15 @@ const loadThreeJS = async () => {
   }
   if (!(window as any).THREE.GLTFLoader) {
     const loaderScript = document.createElement('script');
-    loaderScript.src = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js';
+    loaderScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
     document.head.appendChild(loaderScript);
     await new Promise(resolve => loaderScript.onload = resolve);
+  }
+  if (!(window as any).THREE.DRACOLoader) {
+    const dracoScript = document.createElement('script');
+    dracoScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js';
+    document.head.appendChild(dracoScript);
+    await new Promise(resolve => dracoScript.onload = resolve);
   }
 };
 
@@ -183,6 +189,14 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
 
     // Load Model
     const loader = new THREE.GLTFLoader();
+    
+    // Setup DRACO Loader for compressed GLB support
+    if (THREE.DRACOLoader) {
+      const dracoLoader = new THREE.DRACOLoader();
+      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+      loader.setDRACOLoader(dracoLoader);
+    }
+
     loader.load(
       product.model_3d,
       (gltf: any) => {
