@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product, CartItem, User } from '../types';
-import { Trash2, MessageCircle, RefreshCw, ShieldCheck, Truck, CreditCard, Plus, CheckCircle2, Lock } from 'lucide-react';
+import { Trash2, MessageCircle, RefreshCw, ShieldCheck, Truck, CreditCard, Plus, CheckCircle2, Lock, QrCode, Building } from 'lucide-react';
 import { api } from '../services/api';
 
 interface CartPageProps {
@@ -24,6 +24,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentStep, setPaymentStep] = useState<'form' | 'processing' | 'success'>('form');
   const [cardData, setCardData] = useState({ number: '4242 4242 4242 4242', expiry: '12/28', cvv: '123', name: '' });
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'qr' | 'transfer'>('card');
 
   React.useEffect(() => {
     // Refresh selected when items change
@@ -94,15 +95,26 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
     }
   };
 
-  const handleSimulatePayment = () => {
+  const handleSimulatePayment = async () => {
     setPaymentStep('processing');
-    setTimeout(() => {
+    try {
+      // Registrar la orden en Supabase para que aparezca en el panel de administrador
+      await api.createWorkOrder(
+        loggedInUser?.id || null, 
+        items.filter((_, idx) => selectedItems[idx]),
+        totalPrice
+      );
+      
       setPaymentStep('success');
       setTimeout(() => {
         setShowPaymentModal(false);
         onCheckout();
       }, 1500);
-    }, 2000);
+    } catch (err) {
+      console.error("Error al registrar la orden en Supabase:", err);
+      alert("Hubo un error al guardar tu compra en el sistema. Intenta de nuevo.");
+      setPaymentStep('form');
+    }
   };
 
   const toggleSelectAll = () => {
@@ -364,9 +376,24 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
       </div>
 
+        </div>
+
+      </div>
+
       {/* Pasarela de Pago Simulada */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          {/* Inyección de estilos de animación para el láser QR */}
+          <style>{`
+            @keyframes scan {
+              0%, 100% { top: 0%; }
+              50% { top: 100%; }
+            }
+            .laser-line {
+              animation: scan 2s linear infinite;
+            }
+          `}</style>
+
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-ink/5 relative overflow-hidden animate-in fade-in zoom-in duration-200">
             {paymentStep === 'form' && (
               <div>
@@ -382,61 +409,194 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
                   </button>
                 </div>
 
-                <div className="bg-paper p-4 rounded-2xl mb-6">
-                  <p className="text-xs text-ink/50 uppercase tracking-widest font-bold mb-1">Monto a pagar</p>
-                  <p className="text-2xl font-bold text-accent">CLP${totalPrice.toLocaleString('es-CL')}</p>
+                <div className="bg-paper p-4 rounded-2xl mb-6 flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-ink/50 uppercase tracking-widest font-bold mb-0.5">Monto a pagar</p>
+                    <p className="text-2xl font-bold text-accent">CLP${totalPrice.toLocaleString('es-CL')}</p>
+                  </div>
+                  <span className="text-[10px] bg-accent/10 text-accent font-bold px-2.5 py-1 rounded-full border border-accent/20">Modo Demo</span>
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-bold text-ink/60 block mb-1">Nombre en la tarjeta</label>
-                    <input 
-                      type="text" 
-                      placeholder="Juan Pérez"
-                      className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-medium"
-                      value={cardData.name}
-                      onChange={e => setCardData({...cardData, name: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-ink/60 block mb-1">Número de tarjeta</label>
-                    <input 
-                      type="text" 
-                      className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-mono"
-                      value={cardData.number}
-                      onChange={e => setCardData({...cardData, number: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-bold text-ink/60 block mb-1">Fecha exp.</label>
-                      <input 
-                        type="text" 
-                        placeholder="MM/AA"
-                        className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-mono"
-                        value={cardData.expiry}
-                        onChange={e => setCardData({...cardData, expiry: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-ink/60 block mb-1">CVV</label>
-                      <input 
-                        type="password" 
-                        placeholder="123"
-                        className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-mono"
-                        value={cardData.cvv}
-                        onChange={e => setCardData({...cardData, cvv: e.target.value})}
-                      />
-                    </div>
-                  </div>
+                {/* Selector de métodos de pago (Pestañas) */}
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                  <button 
+                    onClick={() => setPaymentMethod('card')}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-xs font-bold transition-all ${paymentMethod === 'card' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Tarjeta</span>
+                  </button>
+                  <button 
+                    onClick={() => setPaymentMethod('qr')}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-xs font-bold transition-all ${paymentMethod === 'qr' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span>Pago QR</span>
+                  </button>
+                  <button 
+                    onClick={() => setPaymentMethod('transfer')}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-xs font-bold transition-all ${paymentMethod === 'transfer' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
+                  >
+                    <Building className="w-4 h-4" />
+                    <span>Transferir</span>
+                  </button>
                 </div>
 
-                <button 
-                  onClick={handleSimulatePayment}
-                  className="w-full bg-accent text-white font-bold py-4 rounded-xl mt-8 hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20"
-                >
-                  Confirmar Pago Seguro
-                </button>
+                {/* Tarjeta Bancaria */}
+                {paymentMethod === 'card' && (
+                  <div>
+                    {/* Tarjeta Virtual Interactiva */}
+                    <div className="bg-gradient-to-br from-purple-800 via-indigo-900 to-indigo-950 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden mb-6 h-40 flex flex-col justify-between font-mono">
+                      <div className="flex justify-between items-start">
+                        <span className="text-[10px] uppercase tracking-widest font-bold opacity-80">Tarjeta de Crédito</span>
+                        <div className="w-9 h-6 bg-amber-400/80 rounded-md border border-amber-300 opacity-90"></div>
+                      </div>
+                      <div className="text-md sm:text-lg tracking-[0.2em] font-mono mt-3">
+                        {cardData.number || '•••• •••• •••• ••••'}
+                      </div>
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <span className="text-[8px] uppercase tracking-wider block opacity-50">Titular</span>
+                          <span className="text-xs uppercase tracking-wider block truncate max-w-[150px]">{cardData.name || 'JUAN PEREZ'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] uppercase tracking-wider block opacity-50">Vence</span>
+                          <span className="text-xs tracking-wider block">{cardData.expiry || 'MM/AA'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-bold text-ink/60 block mb-1">Nombre en la tarjeta</label>
+                        <input 
+                          type="text" 
+                          placeholder="JUAN PEREZ"
+                          className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-medium uppercase"
+                          value={cardData.name}
+                          onChange={e => setCardData({...cardData, name: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-ink/60 block mb-1">Número de tarjeta</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-mono"
+                          value={cardData.number}
+                          onChange={e => setCardData({...cardData, number: e.target.value})}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-bold text-ink/60 block mb-1">Fecha exp.</label>
+                          <input 
+                            type="text" 
+                            placeholder="MM/AA"
+                            className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-mono"
+                            value={cardData.expiry}
+                            onChange={e => setCardData({...cardData, expiry: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-ink/60 block mb-1">CVV</label>
+                          <input 
+                            type="password" 
+                            placeholder="123"
+                            maxLength={4}
+                            className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-mono"
+                            value={cardData.cvv}
+                            onChange={e => setCardData({...cardData, cvv: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={handleSimulatePayment}
+                      className="w-full bg-accent text-white font-bold py-4 rounded-xl mt-6 hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20"
+                    >
+                      Confirmar Pago Seguro
+                    </button>
+                  </div>
+                )}
+
+                {/* Pago con Código QR */}
+                {paymentMethod === 'qr' && (
+                  <div className="flex flex-col items-center">
+                    <p className="text-xs font-semibold text-ink/65 text-center mb-6">
+                      Escanea el código QR de prueba con tu aplicación bancaria o OnePay para realizar la transacción.
+                    </p>
+
+                    {/* Código QR Simulado */}
+                    <div className="w-48 h-48 bg-slate-50 border border-ink/10 rounded-2xl p-4 flex items-center justify-center relative shadow-sm overflow-hidden mb-6">
+                      {/* Línea láser de escaneo */}
+                      <div className="laser-line absolute left-0 right-0 h-0.5 bg-accent shadow-[0_0_8px_#8b5cf6]" />
+                      
+                      {/* Representación ficticia de QR con SVG */}
+                      <svg viewBox="0 0 100 100" className="w-full h-full text-ink opacity-85">
+                        <rect x="0" y="0" width="25" height="25" fill="currentColor"/>
+                        <rect x="5" y="5" width="15" height="15" fill="white"/>
+                        <rect x="75" y="0" width="25" height="25" fill="currentColor"/>
+                        <rect x="80" y="5" width="15" height="15" fill="white"/>
+                        <rect x="0" y="75" width="25" height="25" fill="currentColor"/>
+                        <rect x="5" y="80" width="15" height="15" fill="white"/>
+                        <path d="M 30,10 H 45 V 20 H 30 Z M 50,0 H 60 V 30 H 50 Z M 40,40 H 60 V 60 H 40 Z M 10,30 H 20 V 45 H 10 Z M 75,30 H 85 V 60 H 75 Z M 30,75 H 45 V 90 H 30 Z M 60,70 H 90 V 80 H 60 Z M 70,85 H 100 V 100 H 70 Z M 0,60 H 15 V 70 H 0 Z" fill="currentColor"/>
+                      </svg>
+                    </div>
+
+                    <button 
+                      onClick={handleSimulatePayment}
+                      className="w-full bg-accent text-white font-bold py-4 rounded-xl hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20"
+                    >
+                      Confirmar Escaneo QR
+                    </button>
+                  </div>
+                )}
+
+                {/* Transferencia Bancaria */}
+                {paymentMethod === 'transfer' && (
+                  <div className="space-y-4">
+                    <p className="text-xs font-semibold text-ink/65 mb-4">
+                      Realiza una transferencia bancaria a los siguientes datos y haz clic en confirmar.
+                    </p>
+
+                    <div className="bg-paper p-4 rounded-2xl space-y-2.5 text-xs font-medium">
+                      <div className="flex justify-between">
+                        <span className="text-ink/50">Banco:</span>
+                        <span className="text-ink font-bold">BancoEstado</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-ink/50">Tipo de Cuenta:</span>
+                        <span className="text-ink font-bold">Cuenta Corriente</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-ink/50">Número:</span>
+                        <span className="text-ink font-bold">129-038-102</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-ink/50">RUT Destino:</span>
+                        <span className="text-ink font-bold">76.129.830-4</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-ink/50">Correo:</span>
+                        <span className="text-ink font-bold">pagos@opticasquinta.cl</span>
+                      </div>
+                    </div>
+
+                    <div className="border-2 border-dashed border-ink/10 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors">
+                      <span className="text-xs font-bold text-ink/60 mb-1">Subir Comprobante de Transferencia</span>
+                      <span className="text-[10px] text-ink/40">Opcional (PDF, PNG, JPG)</span>
+                    </div>
+
+                    <button 
+                      onClick={handleSimulatePayment}
+                      className="w-full bg-accent text-white font-bold py-4 rounded-xl mt-4 hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20"
+                    >
+                      Confirmar Transferencia
+                    </button>
+                  </div>
+                )}
+
                 <p className="text-[10px] text-ink/40 text-center mt-4 flex items-center justify-center gap-1">
                   🔒 Conexión segura demo encriptada de 256 bits
                 </p>
@@ -463,7 +623,6 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
           </div>
         </div>
       )}
-
     </div>
   );
 };

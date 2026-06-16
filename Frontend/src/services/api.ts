@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient';
-import { Product, Appointment, User, LensOption, WorkOrder } from '../types';
+import { Product, Appointment, User, LensOption, WorkOrder, CartItem } from '../types';
 
 export const api = {
   getProducts: async (): Promise<Product[]> => {
@@ -148,5 +148,48 @@ export const api = {
     const { data, error } = await supabase.from('work_orders').select('*');
     if (error) throw new Error(error.message);
     return data || [];
+  },
+
+  createWorkOrder: async (userId: string | null, items: CartItem[], totalAmount: number): Promise<void> => {
+    let integerUserId: number | null = null;
+    if (userId) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_id', userId)
+        .single();
+      if (userData) {
+        integerUserId = userData.id;
+      }
+    }
+
+    const { data: order, error: orderError } = await supabase
+      .from('work_orders')
+      .insert([{
+        user_id: integerUserId,
+        total_amount: totalAmount,
+        deposit_amount: totalAmount,
+        balance_due: 0,
+        status: 'completed'
+      }])
+      .select()
+      .single();
+
+    if (orderError) throw new Error(orderError.message);
+
+    const orderDetails = items.map(item => ({
+      work_order_id: order.id,
+      product_id: item.product.id,
+      quantity: item.quantity,
+      price_at_time: item.product.price,
+      lens_option_name: item.lensOption.name,
+      lens_addon_price: item.lensOption.price_add
+    }));
+
+    const { error: detailsError } = await supabase
+      .from('detalles_orden')
+      .insert(orderDetails);
+
+    if (detailsError) throw new Error(detailsError.message);
   },
 };
