@@ -205,5 +205,26 @@ export const api = {
       .insert(orderDetails);
 
     if (detailsError) throw new Error(detailsError.message);
+
+    // Decrementar el stock de cada producto comprado en la base de datos de Supabase
+    for (const item of items) {
+      const { data: currentProduct } = await supabase
+        .from('products')
+        .select('stock')
+        .eq('id', item.product.id)
+        .single();
+      
+      if (currentProduct && currentProduct.stock !== null && currentProduct.stock !== undefined) {
+        const newStock = Math.max(0, currentProduct.stock - item.quantity);
+        const { error: stockError } = await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', item.product.id);
+        
+        if (stockError) {
+          console.error(`Error al actualizar el stock del producto ${item.product.id}:`, stockError.message);
+        }
+      }
+    }
   },
 };
