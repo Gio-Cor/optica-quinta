@@ -78,7 +78,7 @@ export const api = {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No hay sesión activa');
 
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/reports/monthly-sales/pdf`, {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || ''}/api/reports/monthly-sales/pdf`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${session.access_token}`
@@ -100,7 +100,7 @@ export const api = {
     const { data: session } = await supabase.auth.getSession();
     const userId = session?.session?.user?.id;
 
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/checkout/create-session`, {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || ''}/api/checkout/create-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

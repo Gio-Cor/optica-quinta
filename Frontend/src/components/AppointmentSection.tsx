@@ -48,7 +48,7 @@ export const AppointmentSection = () => {
 
         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-2xl border border-ink/5">
           {submitted ? (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="text-center py-10"
@@ -58,7 +58,7 @@ export const AppointmentSection = () => {
               </div>
               <h3 className="text-2xl font-serif mb-2">¡Cita Solicitada!</h3>
               <p className="text-ink/60">Te contactaremos a la brevedad para confirmar.</p>
-              <button 
+              <button
                 onClick={() => setSubmitted(false)}
                 className="mt-8 text-accent font-semibold"
               >
@@ -70,58 +70,58 @@ export const AppointmentSection = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest font-bold opacity-50">Nombre</label>
-                  <input 
+                  <input
                     required
-                    type="text" 
+                    type="text"
                     className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
                     value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest font-bold opacity-50">Teléfono</label>
-                  <input 
+                  <input
                     required
-                    type="tel" 
+                    type="tel"
                     className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
                     value={formData.phone}
-                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
                   />
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-xs uppercase tracking-widest font-bold opacity-50">Email</label>
-                <input 
+                <input
                   required
-                  type="email" 
+                  type="email"
                   className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
                   value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest font-bold opacity-50">Fecha</label>
-                  <input 
+                  <input
                     required
-                    type="date" 
+                    type="date"
                     className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
                     value={formData.date}
-                    onChange={e => setFormData({...formData, date: e.target.value})}
+                    onChange={e => setFormData({ ...formData, date: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest font-bold opacity-50">Hora</label>
-                  <input 
+                  <input
                     required
-                    type="time" 
+                    type="time"
                     className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
                     value={formData.time}
-                    onChange={e => setFormData({...formData, time: e.target.value})}
+                    onChange={e => setFormData({ ...formData, time: e.target.value })}
                   />
                 </div>
               </div>
-              <button 
+              <button
                 type="submit"
                 className="w-full bg-accent text-white py-4 rounded-xl hover:bg-ink transition-colors font-semibold"
               >

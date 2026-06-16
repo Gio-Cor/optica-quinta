@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Product, CartItem } from '../types';
+import { Product, CartItem, User } from '../types';
 import { Trash2, MessageCircle, RefreshCw, ShieldCheck, Truck, CreditCard, Plus } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -10,9 +10,11 @@ interface CartPageProps {
   onCheckout: () => void;
   onContinueShopping: () => void;
   onAddToCart: (product: Product) => void;
+  loggedInUser?: User | null;
+  onNavigateToTab?: (tab: string) => void;
 }
 
-export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onContinueShopping, onAddToCart }: CartPageProps) => {
+export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onContinueShopping, onAddToCart, loggedInUser, onNavigateToTab }: CartPageProps) => {
   const [selectedItems, setSelectedItems] = useState<boolean[]>(items.map(() => true));
   const [accessories, setAccessories] = useState<Product[]>([]);
 
@@ -36,21 +38,59 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
   const handleCheckout = async () => {
     try {
       setIsCheckingOut(true);
-      const checkoutItems = items
-        .filter((_, idx) => selectedItems[idx])
-        .map((item) => ({
-          productId: item.product.id,
-          quantity: item.quantity,
-          price: item.product.price,
-          lensOptionName: item.lensOption.name,
-          lensAddonPrice: item.lensOption.price_add
-        }));
-      
+
+      // Verificar si algún producto seleccionado requiere receta o agendamiento de cita
+      const selectedCartItems = items.filter((_, idx) => selectedItems[idx]);
+      const requiresPrescription = selectedCartItems.some(item => {
+        const name = item.lensOption.name.toLowerCase();
+        return name.includes('receta') || name.includes('cita');
+      });
+
+      if (requiresPrescription) {
+        // 1. Debe estar registrado y con sesión iniciada
+        if (!loggedInUser) {
+          alert('Para proceder con la compra de productos con receta o cristales personalizados, primero debes iniciar sesión o registrarte.');
+          if (onNavigateToTab) {
+            onNavigateToTab('admin');
+          }
+          setIsCheckingOut(false);
+          return;
+        }
+
+        // 2. Debe tener una cita registrada en Supabase
+        let hasAppointment = false;
+        try {
+          const appointments = await api.getAppointments();
+          hasAppointment = appointments.some(
+            app => app.email.toLowerCase() === loggedInUser.email.toLowerCase()
+          );
+        } catch (err) {
+          console.error("Error al validar citas en la base de datos:", err);
+        }
+
+        if (!hasAppointment) {
+          alert('Primero pide tu cita médica. Para comprar productos con receta o agendar cristales en tienda, el sistema requiere verificar que tengas una cita agendada.');
+          if (onNavigateToTab) {
+            onNavigateToTab('appointments');
+          }
+          setIsCheckingOut(false);
+          return;
+        }
+      }
+
+      const checkoutItems = selectedCartItems.map((item) => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+        price: item.product.price,
+        lensOptionName: item.lensOption.name,
+        lensAddonPrice: item.lensOption.price_add
+      }));
+
       const totalAmount = calculateTotal();
-      
+
       // Obtener la URL de Stripe desde el backend
       const checkoutUrl = await api.checkout(checkoutItems, totalAmount);
-      
+
       // Redirigir al usuario a Stripe
       window.location.href = checkoutUrl;
     } catch (error) {
@@ -98,7 +138,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
   return (
     <div className="pt-32 pb-20 px-6 max-w-7xl mx-auto min-h-screen font-sans bg-paper/30">
-      
+
       <div className="flex justify-between items-end mb-6">
         <h1 className="text-3xl font-bold text-ink">Mi carrito de compras ({items.length})</h1>
         <button className="text-accent hover:underline text-sm font-medium flex items-center gap-2">
@@ -107,9 +147,9 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
       </div>
 
       <div className="mb-4 flex items-center gap-2">
-        <input 
-          type="checkbox" 
-          checked={items.length > 0 && selectedItems.every(Boolean)} 
+        <input
+          type="checkbox"
+          checked={items.length > 0 && selectedItems.every(Boolean)}
           onChange={toggleSelectAll}
           className="w-5 h-5 rounded border-ink/20 text-accent focus:ring-accent"
         />
@@ -117,13 +157,13 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
-        
+
         {/* Lado Izquierdo: Lista de Productos */}
         <div className="lg:col-span-2 space-y-6">
           {items.length === 0 ? (
             <div className="bg-white p-12 rounded-[24px] shadow-lg border border-ink/5 text-center">
               <p className="text-ink/60 text-lg mb-6">Su carrito está vacío</p>
-              <button 
+              <button
                 onClick={onContinueShopping}
                 className="text-accent hover:underline font-bold"
               >
@@ -134,11 +174,11 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
             <div className="bg-white rounded-[24px] shadow-lg border border-ink/5 overflow-hidden p-6">
               {items.map((item, index) => (
                 <div key={`${item.product.id}-${index}`} className={`flex flex-col md:flex-row gap-6 ${index !== items.length - 1 ? 'border-b border-ink/10 pb-8 mb-8' : ''}`}>
-                  
+
                   {/* Checkbox & Imagen */}
                   <div className="flex items-start gap-4">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={selectedItems[index]}
                       onChange={() => toggleItemSelection(index)}
                       className="w-5 h-5 mt-2 rounded border-ink/20 text-accent focus:ring-accent"
@@ -160,17 +200,17 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
                       <button className="text-accent text-sm font-bold flex items-center gap-1 hover:underline mb-2">
                         Detalles del cristal <span className="text-xs">^</span> <span className="font-normal text-xs ml-2">Editar cristales</span>
                       </button>
-                      
+
                       <div className="grid grid-cols-[1fr_auto] gap-y-1 text-sm">
                         <span className="text-ink/60 uppercase text-xs font-bold tracking-wider">Tipo de lentes:</span>
                         <span className="text-ink font-bold text-xs uppercase text-right">{item.lensOption.name} {item.lensOption.price_add > 0 && `(+$${item.lensOption.price_add.toLocaleString('es-CL')})`}</span>
-                        
+
                         <span className="text-ink/60 text-xs">Tinte:</span>
                         <span className="text-ink text-xs text-right">Azul (Oscuro)</span>
-                        
+
                         <span className="text-ink/60 text-xs">Cristal:</span>
                         <span className="text-ink text-xs text-right">Esférico Delgado (1.56)</span>
-                        
+
                         <span className="text-ink/60 text-xs">Recubrimientos:</span>
                         <span className="text-ink text-xs text-right">Estándar</span>
                       </div>
@@ -184,7 +224,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
                           <span className="px-4 py-1 font-bold">{item.quantity}</span>
                           <button onClick={() => updateQuantity(index, 1)} className="px-3 py-1 text-accent hover:bg-ink/5 transition-colors">+</button>
                         </div>
-                        <button 
+                        <button
                           onClick={() => onRemove(index)}
                           className="text-accent hover:underline text-sm flex items-center gap-1 ml-4"
                         >
@@ -192,7 +232,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="mt-4 pt-4 border-t border-ink/5 flex justify-between items-center">
                       <span className="font-bold text-ink">Subtotal {item.quantity > 1 && <span className="text-accent text-xs ml-2 font-normal">(50% dcto aplicado a segundas uds.)</span>}</span>
                       <span className="font-bold text-lg text-ink">CLP${calculateItemTotal(item.product.price + item.lensOption.price_add, item.quantity).toLocaleString('es-CL')}</span>
@@ -214,32 +254,31 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
               <button className="px-6 py-2 rounded-full border border-ink/20 text-ink hover:border-ink/50 whitespace-nowrap transition-colors">Estuche para Lentes</button>
               <button className="px-6 py-2 rounded-full border border-ink/20 text-ink hover:border-ink/50 whitespace-nowrap transition-colors">Otros Accesorios</button>
             </div>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
               {accessories.map((acc) => (
                 <div key={acc.id} className="bg-white rounded-2xl p-4 shadow-sm border border-ink/5 hover:shadow-md transition-shadow flex flex-col items-center text-center relative group">
                   <div className="w-full aspect-square bg-paper rounded-xl mb-3 flex items-center justify-center overflow-hidden relative">
                     <img src={acc.image} alt={acc.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    <span className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      !acc.stock || acc.stock <= 0 
-                        ? 'bg-red-100 text-red-600' 
+                    <span className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${!acc.stock || acc.stock <= 0
+                        ? 'bg-red-100 text-red-600'
                         : 'bg-green-100 text-green-700'
-                    }`}>
+                      }`}>
                       {!acc.stock || acc.stock <= 0 ? 'Agotado' : `Stock: ${acc.stock}`}
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-ink line-clamp-2 min-h-[40px]">{acc.name}</h4>
                   <p className="text-accent font-bold mt-1">CLP${acc.price.toLocaleString('es-CL')}</p>
-                  
+
                   {acc.stock && acc.stock > 0 ? (
-                    <button 
+                    <button
                       onClick={() => onAddToCart(acc)}
                       className="mt-3 w-full bg-ink text-white py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-accent transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <Plus className="w-4 h-4" /> Agregar
                     </button>
                   ) : (
-                    <button 
+                    <button
                       disabled
                       className="mt-3 w-full bg-gray-300 text-white py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-not-allowed opacity-0 group-hover:opacity-100"
                     >
@@ -264,15 +303,15 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
               <span className="font-bold text-ink text-2xl">CLP${totalPrice.toLocaleString('es-CL')}</span>
             </div>
 
-            <button 
+            <button
               onClick={handleCheckout}
               disabled={totalItemsSelected === 0 || isCheckingOut}
               className="w-full bg-accent text-white font-bold py-4 rounded-xl hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
             >
               {isCheckingOut ? 'Procesando...' : 'Finalizar compra'}
             </button>
-            
-            <button 
+
+            <button
               onClick={onContinueShopping}
               className="w-full text-accent font-medium hover:underline text-sm mb-8"
             >
@@ -283,7 +322,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
               <div className="flex items-start gap-3">
                 <Truck className="w-5 h-5 text-ink/60 shrink-0 mt-0.5" />
                 <p className="text-xs text-ink/70">
-                  <span className="font-bold">Envío estándar gratis en Chile desde CLP $69.990</span><br/>
+                  <span className="font-bold">Envío estándar gratis en Chile desde CLP $69.990</span><br />
                   (Aplica antes de añadir los gastos de envío.)
                 </p>
               </div>

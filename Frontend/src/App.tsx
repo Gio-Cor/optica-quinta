@@ -121,6 +121,8 @@ export default function App() {
             setActiveTab('home');
           }}
           onContinueShopping={() => setActiveTab('catalog')}
+          loggedInUser={loggedInUser}
+          onNavigateToTab={setActiveTab}
         />
       );
       case 'appointments': return <AppointmentSection />;
@@ -194,17 +196,17 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <Navbar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          cartCount={cartItems.reduce((acc, item) => acc + item.quantity, 0)}
-          onOpenCart={() => setActiveTab('cart')}
-          loggedInUser={loggedInUser}
-          onLogout={() => {
-            setLoggedInUser(null);
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminUser');
-          }}
-        />
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        cartCount={cartItems.reduce((acc, item) => acc + item.quantity, 0)}
+        onOpenCart={() => setActiveTab('cart')}
+        loggedInUser={loggedInUser}
+        onLogout={() => {
+          setLoggedInUser(null);
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+        }}
+      />
 
       <main>
         {renderContent()}
