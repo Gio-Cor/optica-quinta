@@ -114,16 +114,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
     }
   };
 
-  const handleArFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewProduct({ ...newProduct, ar_image: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+
 
   const handleModelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -147,16 +138,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
     }
   };
 
-  const handleEditArFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditProductData(prev => ({ ...prev, ar_image: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+
 
   const handleEditModelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -631,15 +613,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                           </div>
                         )}
                       </div>
-                      <div>
-                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Foto Modelo Probador Virtual (PNG Transparente)</label>
-                        <input type="file" accept="image/png,image/webp" onChange={handleArFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                        {newProduct.ar_image && (
-                          <div className="mt-3">
-                            <img src={newProduct.ar_image} alt="Vista previa probador" className="h-16 rounded-lg object-contain border border-ink/10 shadow-sm bg-slate-100 p-1" />
-                          </div>
-                        )}
-                      </div>
+
                       <div>
                         <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Modelo 3D Anteojos (Archivo .GLB)</label>
                         <input type="file" accept=".glb" onChange={handleModelFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />

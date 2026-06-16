@@ -118,15 +118,15 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const [useVectorModel, setUseVectorModel] = useState(!product.model_3d);
 
   const [rotationX, setRotationX] = useState(0);
-  const [rotationY, setRotationY] = useState(-90);
-  const [rotationZ, setRotationZ] = useState(180);
+  const [rotationY, setRotationY] = useState(0);
+  const [rotationZ, setRotationZ] = useState(0);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [extraScale, setExtraScale] = useState(1.0);
 
   const rotationXRef = useRef(0);
-  const rotationYRef = useRef(-90);
-  const rotationZRef = useRef(180);
+  const rotationYRef = useRef(0);
+  const rotationZRef = useRef(0);
   const offsetXRef = useRef(0);
   const offsetYRef = useRef(0);
   const extraScaleRef = useRef(1.0);
@@ -152,8 +152,8 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     const scene = new THREE.Scene();
     threeSceneRef.current = scene;
 
-    // Create Orthographic Camera (pixels mapping)
-    const camera = new THREE.OrthographicCamera(0, width, 0, height, -1000, 1000);
+    // Create Orthographic Camera (pixels mapping, Y goes UP)
+    const camera = new THREE.OrthographicCamera(0, width, height, 0, -1000, 1000);
     threeCameraRef.current = camera;
 
     // Create WebGLRenderer
@@ -248,8 +248,8 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       
       threeCameraRef.current.left = 0;
       threeCameraRef.current.right = w;
-      threeCameraRef.current.top = 0;
-      threeCameraRef.current.bottom = h;
+      threeCameraRef.current.top = h;
+      threeCameraRef.current.bottom = 0;
       threeCameraRef.current.updateProjectionMatrix();
     };
 
