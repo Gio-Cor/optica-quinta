@@ -28,6 +28,10 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editProductData, setEditProductData] = useState<Partial<Product>>({});
 
+  // Bulk actions state
+  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
+  const [bulkDiscountPercent, setBulkDiscountPercent] = useState<number>(0);
+
   // Appointments CRUD State
   const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
   const [editApptData, setEditApptData] = useState<Partial<Appointment>>({});
@@ -193,6 +197,37 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
     } catch (error) {
       console.error(error);
       alert('Error al guardar la opción de cristal');
+    }
+  };
+
+  const toggleProductSelection = (id: number) => {
+    setSelectedProductIds(prev => 
+      prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = (filteredProducts: Product[]) => {
+    if (selectedProductIds.length === filteredProducts.length && filteredProducts.length > 0) {
+      setSelectedProductIds([]);
+    } else {
+      setSelectedProductIds(filteredProducts.map(p => p.id));
+    }
+  };
+
+  const handleBulkDiscount = async () => {
+    if (bulkDiscountPercent < 0 || bulkDiscountPercent > 100) return alert('Porcentaje inválido.');
+    if (selectedProductIds.length === 0) return alert('Selecciona al menos un producto.');
+    try {
+      for (const id of selectedProductIds) {
+        await api.updateProduct(id, { discount_percent: bulkDiscountPercent });
+      }
+      refreshData();
+      setSelectedProductIds([]);
+      setBulkDiscountPercent(0);
+      alert('¡Descuento aplicado masivamente!');
+    } catch (error) {
+      console.error(error);
+      alert('Error al aplicar descuentos');
     }
   };
 
@@ -488,6 +523,27 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                   <p className="text-ink/50 text-sm">Gestiona tus productos y existencias de la tienda.</p>
                 </div>
                 <div className="flex items-center gap-4 w-full md:w-auto">
+                  {selectedProductIds.length > 0 && (
+                    <div className="flex items-center gap-2 bg-accent/10 text-accent px-3 py-1.5 rounded-full border border-accent/20">
+                      <span className="text-xs font-bold whitespace-nowrap hidden sm:inline">{selectedProductIds.length} selec.</span>
+                      <div className="flex items-center gap-1 sm:border-l border-accent/20 sm:pl-2">
+                        <input 
+                          type="number" 
+                          placeholder="% Desc" 
+                          min="0" max="100"
+                          value={bulkDiscountPercent || ''}
+                          onChange={e => setBulkDiscountPercent(Number(e.target.value))}
+                          className="w-16 h-7 text-xs px-2 rounded bg-white border border-accent/20 text-ink focus:outline-none"
+                        />
+                        <button 
+                          onClick={handleBulkDiscount}
+                          className="bg-accent text-white text-[10px] uppercase font-bold px-3 py-1.5 rounded hover:bg-accent/80 transition-colors"
+                        >
+                          Aplicar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <label className="flex items-center gap-2 text-sm font-bold cursor-pointer text-ink/70 hover:text-ink transition-colors">
                     <input 
                       type="checkbox" 
@@ -597,6 +653,14 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                     <table className="w-full text-left">
                       <thead>
                         <tr className="bg-slate-50 text-xs uppercase tracking-widest font-bold border-b border-ink/5">
+                          <th className="px-6 py-4 w-12">
+                            <input 
+                              type="checkbox" 
+                              checked={filteredProducts.length > 0 && selectedProductIds.length === filteredProducts.length}
+                              onChange={() => toggleSelectAll(filteredProducts)}
+                              className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
+                            />
+                          </th>
                           <th className="px-6 py-4">Producto</th>
                           <th className="px-6 py-4">Marca</th>
                           <th className="px-6 py-4">Categoría</th>
@@ -607,13 +671,21 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                       </thead>
                       <tbody className="divide-y divide-ink/5">
                         {filteredProducts.length === 0 ? (
-                          <tr><td colSpan={6} className="text-center py-12 text-ink/50 font-bold">No se encontraron productos.</td></tr>
+                          <tr><td colSpan={7} className="text-center py-12 text-ink/50 font-bold">No se encontraron productos.</td></tr>
                         ) : filteredProducts.map(p => {
                           const isEditing = editingProductId === p.id;
 
                           if (isEditing) {
                             return (
                               <tr key={p.id} className="bg-slate-50 text-sm">
+                                <td className="px-6 py-4 text-center">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={selectedProductIds.includes(p.id)}
+                                    onChange={() => toggleProductSelection(p.id)}
+                                    className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
+                                  />
+                                </td>
                                 <td className="px-6 py-4 flex flex-col gap-3 min-w-[280px]">
                                   <input className="w-full border border-ink/10 p-2 rounded-lg bg-white font-semibold" value={editProductData.name || ''} onChange={e => setEditProductData({...editProductData, name: e.target.value})} placeholder="Nombre" />
                                   
@@ -669,8 +741,19 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
                           return (
                            <tr key={p.id} className="hover:bg-slate-50/50 transition-all">
-                             <td className="px-6 py-4 flex items-center gap-4">
-                               <img src={p.image} className="w-12 h-12 rounded-xl object-cover border border-ink/5" />
+                             <td className="px-6 py-4 text-center">
+                               <input 
+                                 type="checkbox" 
+                                 checked={selectedProductIds.includes(p.id)}
+                                 onChange={() => toggleProductSelection(p.id)}
+                                 className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
+                               />
+                             </td>
+                             <td className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                               <div className="relative">
+                                 <img src={p.image} className="w-12 h-12 rounded-xl object-cover border border-ink/5" />
+                                 {p.is_featured && <span className="absolute -top-2 -right-2 bg-accent text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">⭐</span>}
+                               </div>
                                <span className="font-bold text-ink">{p.name}</span>
                              </td>
                              <td className="px-6 py-4 text-ink/60 text-sm font-semibold">{p.brand}</td>
@@ -684,7 +767,18 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                                  {p.stock ?? 0} u.
                                </span>
                              </td>
-                             <td className="px-6 py-4 text-sm font-bold">${p.price.toLocaleString('es-CL')}</td>
+                             <td className="px-6 py-4">
+                               <div className="flex flex-col">
+                                 {p.discount_percent && p.discount_percent > 0 ? (
+                                   <>
+                                     <span className="text-xs text-ink/40 line-through font-semibold">${p.price.toLocaleString('es-CL')}</span>
+                                     <span className="text-sm font-bold text-red-500">${(p.price * (1 - p.discount_percent / 100)).toLocaleString('es-CL')} <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded ml-1">-{p.discount_percent}%</span></span>
+                                   </>
+                                 ) : (
+                                   <span className="text-sm font-bold">${p.price.toLocaleString('es-CL')}</span>
+                                 )}
+                               </div>
+                             </td>
                              <td className="px-6 py-4 text-right flex gap-3 justify-end items-center h-full pt-7">
                                <button onClick={() => { setEditingProductId(p.id); setEditProductData(p); }} className="text-blue-500 hover:bg-blue-50 rounded-lg p-2" title="Editar">
                                   <Edit2 className="w-4.5 h-4.5" />
