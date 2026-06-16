@@ -192,6 +192,14 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         box.getCenter(center);
         model.position.sub(center);
 
+        // Normalize model size to exactly 1 unit width
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const modelWidth = size.x || 1;
+        model.scale.setScalar(1 / modelWidth);
+
+        console.log("Model loaded successfully. Original width:", modelWidth, "Scaled to 1.0");
+
         // Apply initial rotation offsets from refs
         model.rotation.x = (rotationXRef.current * Math.PI) / 180;
         model.rotation.y = (rotationYRef.current * Math.PI) / 180;
