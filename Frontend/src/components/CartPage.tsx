@@ -376,10 +376,6 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
       </div>
 
-        </div>
-
-      </div>
-
       {/* Pasarela de Pago Simulada */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">

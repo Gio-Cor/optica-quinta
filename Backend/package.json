@@ -21,7 +21,8 @@
     "jsonwebtoken": "^9.0.2",
     "pdfkit": "^0.18.0",
     "pg": "^8.11.3",
-    "stripe": "^22.2.1"
+    "stripe": "^22.2.1",
+    "@supabase/supabase-js": "^2.39.8"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

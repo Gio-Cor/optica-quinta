@@ -36,6 +36,20 @@ export const api = {
   registerUser: async (email: string, password: string): Promise<any> => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw new Error(error.message);
+
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert([{
+          auth_id: data.user.id,
+          email: email,
+          password_hash: 'supabase_auth',
+          role: 'user'
+        }]);
+      if (profileError) {
+        console.error("Error al crear perfil en public.users:", profileError);
+      }
+    }
     return data;
   },
 

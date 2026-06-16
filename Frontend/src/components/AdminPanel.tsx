@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Trash2, CheckCircle, X, Edit2, Save,
   LayoutDashboard, Package, Users, BarChart3, LogOut, Search, Sliders, Calendar,
-  TrendingUp, UserPlus, AlertCircle, ShoppingBag, Plus, Eye, Check, ShieldAlert
+  TrendingUp, UserPlus, AlertCircle, ShoppingBag, Plus, Eye, Check, ShieldAlert, RefreshCw
 } from 'lucide-react';
 import { Product, Appointment, User, LensOption, WorkOrder } from '../types';
 import { api } from '../services/api';
@@ -276,8 +276,10 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
     return d.toISOString().split('T')[0];
   });
   const weeklySales = last7Days.map(date => {
-    const total = workOrders.filter(w => w.created_at.startsWith(date)).reduce((sum, w) => sum + Number(w.total_amount), 0);
-    const dayName = new Date(date).toLocaleDateString('es-CL', { weekday: 'short' });
+    const total = workOrders
+      .filter(w => w.created_at && typeof w.created_at === 'string' && w.created_at.startsWith(date))
+      .reduce((sum, w) => sum + Number(w.total_amount), 0);
+    const dayName = new Date(date).toLocaleDateString('es-CL', { weekday: 'short', timeZone: 'UTC' });
     return { day: dayName.charAt(0).toUpperCase() + dayName.slice(1), total };
   });
   const maxSale = Math.max(...weeklySales.map(d => d.total), 1);
@@ -370,9 +372,18 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
           {view === 'dashboard' ? (
             <>
               {/* Dashboard Title */}
-              <div>
-                <h1 className="text-3xl font-bold font-sans tracking-tight text-ink mb-1">Dashboard General</h1>
-                <p className="text-ink/50 text-sm">Resumen operativo de la Óptica.</p>
+              <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-ink/5 shadow-sm">
+                <div>
+                  <h1 className="text-3xl font-bold font-sans tracking-tight text-ink mb-1">Dashboard General</h1>
+                  <p className="text-ink/50 text-sm font-medium">Resumen operativo de la Óptica.</p>
+                </div>
+                <button
+                  onClick={refreshData}
+                  className="flex items-center gap-2 bg-ink hover:bg-accent text-white font-bold px-5 py-3 rounded-xl transition-all shadow-md active:scale-95 duration-200"
+                >
+                  <RefreshCw className="w-4.5 h-4.5 animate-spin-hover" />
+                  <span>Sincronizar Datos</span>
+                </button>
               </div>
 
               {/* Stats Cards Grid */}

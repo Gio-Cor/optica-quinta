@@ -151,7 +151,7 @@ app.get('/api/reports/monthly-sales/pdf', requireAdmin, async (req: Request, res
 // Inicializar Stripe con la clave secreta
 // NOTA: Para un entorno de producción, asegúrate de colocar tu STRIPE_SECRET_KEY real en el archivo .env
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_placeholder', {
-  apiVersion: '2025-01-27.acacia',
+  apiVersion: '2025-01-27.acacia' as any,
 });
 
 app.post('/api/checkout/create-session', async (req: Request, res: Response) => {
