@@ -640,7 +640,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                 )}
 
                 {/* Dynamic AR Glasses Overlay (Using standard div to prevent Framer Motion from stripping the centering translation) */}
-                {glassesTransform.visible && (
+                {useVectorModel && glassesTransform.visible && (
                   <div 
                     className="absolute pointer-events-none transition-all duration-75"
                     style={{
@@ -724,33 +724,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                 </div>
               )}
 
-              {/* Try-On Mode Toggle Selector */}
-              {!loadingModel && !error && (product.ar_image || product.model_3d) && (
-                <div className="pt-3 md:pt-4 border-t border-ink/5">
-                  <span className="text-[11px] text-ink/60 font-semibold block mb-2">Modo del Probador</span>
-                  <div className="grid grid-cols-2 gap-2 bg-ink/5 p-1 rounded-xl">
-                    <button
-                      onClick={() => setUseVectorModel(true)}
-                      className={`py-1.5 text-xs font-bold rounded-lg transition-all ${useVectorModel ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'}`}
-                    >
-                      Modelo Digital
-                    </button>
-                    <button
-                      onClick={() => setUseVectorModel(false)}
-                      className={`py-1.5 text-xs font-bold rounded-lg transition-all ${!useVectorModel ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'}`}
-                    >
-                      {product.model_3d ? "Modelo 3D 🌐" : "Foto Real"}
-                    </button>
-                  </div>
-                  <p className="text-[9px] text-ink/40 mt-1">
-                    {useVectorModel 
-                      ? "Modelo vectorial premium 100% transparente y con cambio de color en tiempo real." 
-                      : product.model_3d 
-                        ? "Modelo 3D GLB interactivo ajustado a tu rostro en tiempo real. [v1.2 - Frente]"
-                        : "Foto real del catálogo con eliminación digital de fondo blanco."}
-                  </p>
-                </div>
-              )}
+
 
               {/* 3D Model Manual Adjustments Panel */}
               {!loadingModel && !error && product.model_3d && !useVectorModel && (
