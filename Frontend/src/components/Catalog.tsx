@@ -104,6 +104,22 @@ export const Catalog = ({ onTryOn, onAddToCart, onViewDetail }: { onTryOn: (p: P
                     </button>
                   )}
                 </div>
+
+                {product.is_featured && (
+                  <div className="absolute top-4 right-4">
+                    <span className="bg-accent text-white shadow-md px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold">
+                      Destacado
+                    </span>
+                  </div>
+                )}
+                
+                {product.discount_percent && product.discount_percent > 0 ? (
+                  <div className="absolute bottom-4 left-4">
+                    <span className="bg-red-500 text-white shadow-md px-2 py-1 rounded-md text-xs font-bold">
+                      -{product.discount_percent}%
+                    </span>
+                  </div>
+                ) : null}
               </div>
               <div className="flex justify-between items-start mt-4 mb-1">
                 <h3 className="font-serif text-xl">{product.name}</h3>
@@ -115,7 +131,16 @@ export const Catalog = ({ onTryOn, onAddToCart, onViewDetail }: { onTryOn: (p: P
                   {!product.stock || product.stock <= 0 ? 'Agotado' : `Stock: ${product.stock}`}
                 </span>
               </div>
-              <p className="text-accent font-semibold mb-2">${product.price.toLocaleString('es-CL')}</p>
+              <div className="flex items-center gap-2 mb-2">
+                {product.discount_percent && product.discount_percent > 0 ? (
+                  <>
+                    <p className="text-accent font-semibold">${(product.price * (1 - product.discount_percent / 100)).toLocaleString('es-CL')}</p>
+                    <p className="text-sm text-ink/40 line-through">${product.price.toLocaleString('es-CL')}</p>
+                  </>
+                ) : (
+                  <p className="text-accent font-semibold">${product.price.toLocaleString('es-CL')}</p>
+                )}
+              </div>
               <p className="text-sm text-ink/50 line-clamp-2">{product.description}</p>
             </motion.div>
           ))}

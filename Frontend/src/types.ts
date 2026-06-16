@@ -9,6 +9,8 @@ export interface Product {
   category?: 'lente' | 'accesorio';
   ar_image?: string;
   model_3d?: string;
+  is_featured?: boolean;
+  discount_percent?: number;
 }
 
 export interface Appointment {

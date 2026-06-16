@@ -14,6 +14,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [view, setView] = useState<'dashboard' | 'products' | 'lens_options' | 'appointments' | 'reports'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showOnlyFeatured, setShowOnlyFeatured] = useState(false);
   
   // Lens Options CRUD State
   const [isAddingLensOption, setIsAddingLensOption] = useState(false);
@@ -23,7 +24,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
   // Products CRUD State
   const [isAddingProduct, setIsAddingProduct] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '' });
+  const [newProduct, setNewProduct] = useState({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '', is_featured: false, discount_percent: 0 });
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editProductData, setEditProductData] = useState<Partial<Product>>({});
 
@@ -91,7 +92,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
       await api.createProduct(newProduct);
       refreshData();
       setIsAddingProduct(false);
-      setNewProduct({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '' });
+      setNewProduct({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '', is_featured: false, discount_percent: 0 });
     } catch (error: any) {
       console.error(error);
       alert('Error al guardar el producto. Puede que la imagen sea demasiado grande o haya un problema de conexión.');
@@ -228,14 +229,32 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   const outOfStockCount = products.filter(p => (p.stock || 0) === 0).length;
 
   const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.brand.toLowerCase().includes(searchTerm.toLowerCase())
+    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.brand.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (!showOnlyFeatured || p.is_featured)
   );
+  // --- Dynamic Dashboard Data ---
+  const last7Days = Array.from({length: 7}).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().split('T')[0];
+  });
+  const weeklySales = last7Days.map(date => {
+    const total = workOrders.filter(w => w.created_at.startsWith(date)).reduce((sum, w) => sum + Number(w.total_amount), 0);
+    const dayName = new Date(date).toLocaleDateString('es-CL', { weekday: 'short' });
+    return { day: dayName.charAt(0).toUpperCase() + dayName.slice(1), total };
+  });
+  const maxSale = Math.max(...weeklySales.map(d => d.total), 1);
+
+  const topProducts = [...products]
+    .filter(p => p.category === 'lente')
+    .sort((a, b) => (a.stock || 0) - (b.stock || 0))
+    .slice(0, 3);
 
   return (
-    <div className="flex min-h-screen bg-[#f4f4f4] text-ink font-sans pt-[80px]">
+    <div className="flex min-h-screen bg-[#f4f4f4] text-ink font-sans">
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-white border-r border-ink/5 flex flex-col justify-between py-8 px-6 fixed top-[80px] h-[calc(100vh-80px)] z-10">
+      <aside className="w-64 bg-white border-r border-ink/5 flex flex-col justify-between py-8 px-6 fixed top-0 h-screen z-10">
         <div>
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10 px-2">
@@ -307,7 +326,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 pl-64 min-h-[calc(100vh-80px)] flex flex-col">
+      <main className="flex-1 pl-64 min-h-screen flex flex-col">
         {/* Top Header Bar Removed to save space */}
 
         {/* Dashboard Pages */}
@@ -396,11 +415,12 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Actividad Semanal Chart (2/3 width) */}
                 <div className="bg-white rounded-3xl p-8 shadow-sm border border-ink/5 lg:col-span-2 flex flex-col justify-between">
-                  <div className="mb-6">
-                    <h3 className="text-lg font-bold text-ink">Actividad Semanal</h3>
+                  <div className="mb-6 flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-ink">Ingresos de la Semana</h3>
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-md">Real-Time</span>
                   </div>
                   
-                  {/* Clean rounded SVG bar chart */}
+                  {/* Dynamic rounded SVG bar chart */}
                   <div className="h-64 relative flex items-end justify-between px-4 pb-6 pt-4">
                     {/* Grid lines */}
                     <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-12">
@@ -411,64 +431,50 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                     </div>
 
                     {/* Chart Bars */}
-                    {[
-                      { day: 'Lun', val: 'h-[100%]' },
-                      { day: 'Mar', val: 'h-[75%]' },
-                      { day: 'Mie', val: 'h-[50%]' },
-                      { day: 'Jue', val: 'h-[68%]' },
-                      { day: 'Vie', val: 'h-[48%]' },
-                      { day: 'Sab', val: 'h-[60%]' },
-                      { day: 'Dom', val: 'h-[88%]' }
-                    ].map((b, i) => (
-                      <div key={i} className="flex flex-col items-center gap-3 z-10 w-12 h-full justify-end">
-                        <div className={`w-10 ${b.val} bg-ink rounded-lg hover:bg-accent transition-all duration-300`}></div>
+                    {weeklySales.map((b, i) => (
+                      <div key={i} className="flex flex-col items-center gap-3 z-10 w-12 h-full justify-end group relative">
+                        {/* Tooltip on hover */}
+                        <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-ink text-white text-[10px] font-bold py-1 px-2 rounded-lg pointer-events-none transition-opacity whitespace-nowrap z-20">
+                          ${b.total.toLocaleString('es-CL')}
+                        </div>
+                        <div 
+                          className="w-10 bg-ink rounded-lg hover:bg-accent transition-all duration-300"
+                          style={{ height: `${Math.max(5, (b.total / maxSale) * 100)}%` }}
+                        ></div>
                         <span className="text-xs font-bold text-ink/40 mt-1">{b.day}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Tráfico de Clientes Chart (1/3 width) */}
-                <div className="bg-white rounded-3xl p-8 shadow-sm border border-ink/5 flex flex-col justify-between">
+                {/* Top 3 Productos (1/3 width) */}
+                <div className="bg-white rounded-3xl p-8 shadow-sm border border-ink/5 flex flex-col h-full">
                   <div className="mb-6">
-                    <h3 className="text-lg font-bold text-ink">Tráfico de Clientes</h3>
+                    <h3 className="text-lg font-bold text-ink">Productos Estrella</h3>
+                    <p className="text-xs text-ink/50 mt-1 font-medium">Modelos más solicitados</p>
                   </div>
 
-                  {/* SVG spline line chart */}
-                  <div className="h-64 relative flex flex-col justify-between">
-                    <svg viewBox="0 0 100 80" className="w-full h-full overflow-visible">
-                      {/* Grid background lines */}
-                      <line x1="0" y1="20" x2="100" y2="20" stroke="#f1f1f1" strokeWidth="0.5" strokeDasharray="2,2" />
-                      <line x1="0" y1="40" x2="100" y2="40" stroke="#f1f1f1" strokeWidth="0.5" strokeDasharray="2,2" />
-                      <line x1="0" y1="60" x2="100" y2="60" stroke="#f1f1f1" strokeWidth="0.5" strokeDasharray="2,2" />
-
-                      {/* Smooth curved spline path */}
-                      <path 
-                        d="M 5,60 C 15,75 20,15 35,15 C 50,15 55,50 68,50 C 80,50 85,60 95,55" 
-                        fill="none" 
-                        stroke="black" 
-                        strokeWidth="2" 
-                      />
-
-                      {/* Points */}
-                      <circle cx="5" cy="60" r="2.5" fill="black" />
-                      <circle cx="20" cy="68" r="2.5" fill="black" />
-                      <circle cx="35" cy="15" r="2.5" fill="black" />
-                      <circle cx="50" cy="52" r="2.5" fill="black" />
-                      <circle cx="68" cy="50" r="2.5" fill="black" />
-                      <circle cx="82" cy="56" r="2.5" fill="black" />
-                      <circle cx="95" cy="55" r="2.5" fill="black" />
-                    </svg>
-
-                    {/* Timeline labels */}
-                    <div className="flex justify-between text-xs font-bold text-ink/40 px-2 mt-2">
-                      <span>Mar</span>
-                      <span>Mie</span>
-                      <span>Jue</span>
-                      <span>Vie</span>
-                      <span>Sab</span>
-                      <span>Dom</span>
-                    </div>
+                  <div className="flex flex-col gap-4 flex-1">
+                    {topProducts.length === 0 ? (
+                       <div className="flex-1 flex items-center justify-center text-ink/40 text-sm font-semibold border-2 border-dashed border-ink/5 rounded-2xl">Sin datos</div>
+                    ) : (
+                      topProducts.map((p, i) => (
+                        <div key={p.id} className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-ink/5">
+                          <div className="w-8 h-8 rounded-full bg-ink text-white font-bold flex items-center justify-center text-sm shadow-sm flex-shrink-0">
+                            #{i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-ink text-sm truncate">{p.name}</h4>
+                            <p className="text-xs font-semibold text-accent truncate">{p.brand}</p>
+                          </div>
+                          <div className="text-right">
+                             <div className="text-xs font-bold text-ink bg-white px-2 py-1 rounded-md shadow-sm border border-ink/5">
+                               {p.stock} ud.
+                             </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -481,15 +487,26 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                   <h1 className="text-3xl font-bold tracking-tight text-ink mb-1">Inventario General</h1>
                   <p className="text-ink/50 text-sm">Gestiona tus productos y existencias de la tienda.</p>
                 </div>
-                <div className="relative w-full md:w-auto">
-                  <input 
-                    type="text" 
-                    placeholder="Buscar productos..." 
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="bg-white border border-ink/10 focus:border-ink/30 rounded-full py-2.5 pl-11 pr-4 text-sm w-full md:w-72 transition-all focus:outline-none shadow-sm"
-                  />
-                  <Search className="w-4 h-4 text-ink/40 absolute left-4 top-3.5" />
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                  <label className="flex items-center gap-2 text-sm font-bold cursor-pointer text-ink/70 hover:text-ink transition-colors">
+                    <input 
+                      type="checkbox" 
+                      checked={showOnlyFeatured}
+                      onChange={e => setShowOnlyFeatured(e.target.checked)}
+                      className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent"
+                    />
+                    Solo Destacados
+                  </label>
+                  <div className="relative flex-1 md:w-auto">
+                    <input 
+                      type="text" 
+                      placeholder="Buscar productos..." 
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      className="bg-white border border-ink/10 focus:border-ink/30 rounded-full py-2.5 pl-11 pr-4 text-sm w-full md:w-72 transition-all focus:outline-none shadow-sm"
+                    />
+                    <Search className="w-4 h-4 text-ink/40 absolute left-4 top-3.5" />
+                  </div>
                 </div>
               </div>
 
@@ -527,10 +544,20 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                          </div>
                          <div>
                            <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Categoría</label>
-                           <select required value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white">
+                           <select required value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value as 'lente' | 'accesorio'})} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white">
                              <option value="lente">Lente</option>
                              <option value="accesorio">Accesorio</option>
                            </select>
+                         </div>
+                         <div>
+                           <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">% Descuento</label>
+                           <input type="number" min="0" max="100" value={newProduct.discount_percent || 0} onChange={e => setNewProduct({...newProduct, discount_percent: Number(e.target.value)})} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
+                         </div>
+                         <div className="flex items-center h-full md:pt-6">
+                           <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-ink">
+                             <input type="checkbox" checked={newProduct.is_featured || false} onChange={e => setNewProduct({...newProduct, is_featured: e.target.checked})} className="w-5 h-5 rounded border-ink/20 text-accent focus:ring-accent" />
+                             Producto Destacado
+                           </label>
                          </div>
                          <div>
                            <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Imagen del Producto (Catálogo)</label>
@@ -612,10 +639,15 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                                   <input className="w-full border border-ink/10 p-2 rounded-lg bg-white" value={editProductData.brand || ''} onChange={e => setEditProductData({...editProductData, brand: e.target.value})} placeholder="Marca" />
                                 </td>
                                 <td className="px-6 py-4">
-                                  <select className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm" value={editProductData.category || 'lente'} onChange={e => setEditProductData({...editProductData, category: e.target.value as 'lente'|'accesorio'})}>
+                                  <select className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm mb-2" value={editProductData.category || 'lente'} onChange={e => setEditProductData({...editProductData, category: e.target.value as 'lente'|'accesorio'})}>
                                     <option value="lente">Lente</option>
                                     <option value="accesorio">Accesorio</option>
                                   </select>
+                                  <input className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm mb-2" type="number" min="0" max="100" value={editProductData.discount_percent || 0} onChange={e => setEditProductData({...editProductData, discount_percent: Number(e.target.value)})} placeholder="% Desc." />
+                                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-ink/70">
+                                    <input type="checkbox" checked={editProductData.is_featured || false} onChange={e => setEditProductData({...editProductData, is_featured: e.target.checked})} className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent" />
+                                    Destacar
+                                  </label>
                                 </td>
                                 <td className="px-6 py-4">
                                   <input className="w-full border border-ink/10 p-2 rounded-lg text-center w-20 bg-white" type="number" value={editProductData.stock ?? 0} onChange={e => setEditProductData({...editProductData, stock: Number(e.target.value)})} placeholder="Stock" />

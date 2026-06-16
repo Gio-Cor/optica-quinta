@@ -41,7 +41,9 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
   }, [product.model_3d]);
 
   const selectedOption = lensOptions.find(o => o.id === selectedLensOptionId);
-  const currentPrice = product.price + (selectedOption?.price_add || 0);
+  const basePrice = product.price;
+  const discountedPrice = product.discount_percent ? basePrice * (1 - product.discount_percent / 100) : basePrice;
+  const currentPrice = discountedPrice + (selectedOption?.price_add || 0);
 
   return (
     <motion.div 
@@ -120,7 +122,7 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
             <div className="mb-2">
               <h2 className="text-2xl font-bold tracking-[0.2em] uppercase text-ink">{product.brand}</h2>
               <div className="flex items-center gap-4 mt-2">
-                <p className="text-ink/60 text-sm">{product.name} • SKU: {product.id.toString().padStart(5, '0')}OQ</p>
+                <p className="text-ink/60 text-sm font-semibold">{product.name} • SKU: {product.id.toString().padStart(5, '0')}OQ</p>
                 <span className={`text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap ${
                   !product.stock || product.stock <= 0 
                     ? 'bg-red-100 text-red-600' 
@@ -131,8 +133,21 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
               </div>
             </div>
             
-            <div className="inline-block bg-paper px-4 py-2 mt-4 rounded-md border border-ink/10 text-xs font-bold mb-8 w-max">
-              50% DCTO EN 2DA UNIDAD
+            <p className="text-ink/70 text-sm mt-4 mb-4 leading-relaxed">
+              {product.description}
+            </p>
+
+            <div className="flex gap-3 mb-8">
+              {product.discount_percent && product.discount_percent > 0 ? (
+                <div className="inline-block bg-red-50 text-red-600 px-4 py-2 rounded-md border border-red-100 text-xs font-bold">
+                  {product.discount_percent}% DE DESCUENTO
+                </div>
+              ) : null}
+              {product.is_featured && (
+                <div className="inline-block bg-accent/10 text-accent px-4 py-2 rounded-md border border-accent/20 text-xs font-bold">
+                  DESTACADO
+                </div>
+              )}
             </div>
 
             <div className="space-y-6 mb-8 py-8 border-y border-ink/10">
@@ -166,7 +181,14 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
                 <span className="text-xs font-bold tracking-widest text-ink/80 block mb-2">PRECIO:</span>
                 <span className="text-sm text-ink/60">Hasta 12 cuotas sin interés - Valor cuota: ${(currentPrice / 12).toLocaleString('es-CL', { maximumFractionDigits: 0 })}</span>
               </div>
-              <span className="text-3xl font-sans font-bold text-ink">${currentPrice.toLocaleString('es-CL')}</span>
+              <div className="text-right">
+                {product.discount_percent && product.discount_percent > 0 && (
+                  <span className="block text-lg line-through text-ink/40 font-semibold mb-1">
+                    ${(product.price + (selectedOption?.price_add || 0)).toLocaleString('es-CL')}
+                  </span>
+                )}
+                <span className="text-3xl font-sans font-bold text-ink">${currentPrice.toLocaleString('es-CL')}</span>
+              </div>
             </div>
 
             {product.stock && product.stock > 0 ? (
@@ -282,105 +304,6 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
           </div>
         </div>
 
-        {/* Bottom Info Section (Full width background) */}
-      </div>
-      <div className="w-full bg-paper pt-16 pb-32 px-6">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12">
-          <div className="md:col-span-1">
-            <h3 className="text-3xl font-serif text-ink">Acerca del anteojo</h3>
-          </div>
-          
-          <div className="md:col-span-3 bg-white w-full rounded-none border-b-0">
-            {/* Accordion 1 */}
-            <div className="border-b border-ink/10">
-              <button 
-                onClick={() => setActiveTab(activeTab === 'details' ? '' : 'details')}
-                className="w-full flex justify-between items-center py-6 px-4 hover:bg-paper/50 transition-colors"
-              >
-                <div className="flex items-center gap-3 font-bold text-lg text-ink">
-                  <span>Detalles del armazón</span>
-                </div>
-                <ChevronDown className={`w-6 h-6 transition-transform ${activeTab === 'details' ? 'rotate-180' : ''}`} />
-              </button>
-              <AnimatePresence>
-                {activeTab === 'details' && (
-                  <motion.div 
-                    initial={{ height: 0 }}
-                    animate={{ height: 'auto' }}
-                    exit={{ height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="p-6 pt-0 text-sm grid grid-cols-2 md:grid-cols-4 gap-6">
-                      <div>
-                        <p className="font-bold mb-1">Material:</p>
-                        <p className="text-ink/70">Acetato</p>
-                      </div>
-                      <div>
-                        <p className="font-bold mb-1">Forma:</p>
-                        <p className="text-ink/70">Cuadrado</p>
-                      </div>
-                      <div>
-                        <p className="font-bold mb-1">Color:</p>
-                        <p className="text-ink/70">Marrón Transparente</p>
-                      </div>
-                      <div>
-                        <p className="font-bold mb-1">Género:</p>
-                        <p className="text-ink/70">Unisex</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Accordion 2 */}
-            <div>
-              <button 
-                onClick={() => setActiveTab(activeTab === 'measurements' ? '' : 'measurements')}
-                className="w-full flex justify-between items-center py-6 px-4 hover:bg-paper/50 transition-colors"
-              >
-                <div className="flex items-center gap-3 font-bold text-lg text-ink">
-                  <span>Medidas del armazón</span>
-                </div>
-                <ChevronDown className={`w-6 h-6 transition-transform ${activeTab === 'measurements' ? 'rotate-180' : ''}`} />
-              </button>
-              <AnimatePresence>
-                {activeTab === 'measurements' && (
-                  <motion.div 
-                    initial={{ height: 0 }}
-                    animate={{ height: 'auto' }}
-                    exit={{ height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="p-6 pt-0 text-sm grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-8 border-2 border-ink rounded-[10px] opacity-40 shrink-0" />
-                        <div>
-                          <p className="font-bold mb-1">Tamaño del cristal:</p>
-                          <p className="text-ink/70">53mm</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-2 border-t-2 border-ink opacity-40 shrink-0" />
-                        <div>
-                          <p className="font-bold mb-1">Ancho del puente:</p>
-                          <p className="text-ink/70">18mm</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-1 bg-ink opacity-40 rounded shrink-0 rotate-12" />
-                        <div>
-                          <p className="font-bold mb-1">Largo de la varilla:</p>
-                          <p className="text-ink/70">145mm</p>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
       </div>
     </motion.div>
   );
