@@ -32,7 +32,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const [loadingModel, setLoadingModel] = useState(true);
   const [faceLandmarker, setFaceLandmarker] = useState<any>(null);
   const [scaleAdjustment, setScaleAdjustment] = useState(1.95);
-  const [faceDetected, setFaceDetected] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(true);
   const [captureMode, setCaptureMode] = useState<'live' | 'photo'>('live');
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const staticImageRef = useRef<HTMLImageElement>(null);
@@ -312,59 +312,16 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     visible: boolean;
   }>({ left: 50, top: 42, width: 43, rotate: 0, visible: true });
 
-  // Initialize MediaPipe and Camera
+  // Initialize Camera (MediaPipe model bypassed for instant startup and full compatibility)
   useEffect(() => {
     let active = true;
-    let landmarkerInstance: any = null;
     let localStream: MediaStream | null = null;
 
     async function initAR() {
       setLoadingModel(true);
       setError(null);
 
-      // 1. Load MediaPipe Model
-      try {
-        // Dynamic import of Google MediaPipe Tasks-Vision ESM from CDN
-        const visionModule = await import(
-          /* @vite-ignore */
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.mjs"
-        );
-        
-        if (!active) return;
-
-        const { FilesetResolver, FaceLandmarker } = visionModule;
-
-        // Resolve WASM assets
-        const filesetResolver = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
-        );
-
-        if (!active) return;
-
-        // Create the Landmarker instance using the official lightweight face model
-        landmarkerInstance = await FaceLandmarker.createFromOptions(filesetResolver, {
-          baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-            delegate: "CPU"
-          },
-          runningMode: "VIDEO",
-          numFaces: 1,
-          outputFaceBlendshapes: false,
-          outputFacialTransformationMatrixes: false
-        });
-
-        if (!active) return;
-        setFaceLandmarker(landmarkerInstance);
-      } catch (modelErr: any) {
-        console.error("Error loading MediaPipe model:", modelErr);
-        if (active) {
-          setError(`[Error IA] No se pudo descargar el modelo: ${modelErr?.name || 'Error'}: ${modelErr?.message || modelErr}`);
-          setLoadingModel(false);
-        }
-        return;
-      }
-
-      // 2. Start Camera Feed
+      // Start Camera Feed
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
@@ -384,7 +341,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       } catch (camErr: any) {
         console.error("Error accessing camera:", camErr);
         if (active) {
-          setError(`[Error Cámara] [${camErr?.name || 'Error'}]: ${camErr?.message || 'Asegúrate de dar permisos de cámara en Safari.'}`);
+          setError(`[Error Cámara] [${camErr?.name || 'Error'}]: ${camErr?.message || 'Asegúrate de dar permisos de cámara.'}`);
           setLoadingModel(false);
         }
       }
@@ -409,105 +366,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     }
   }, [stream]);
 
-  // MediaPipe Face Tracking Loop
-  useEffect(() => {
-    if (!faceLandmarker || !stream) return;
-
-    let active = true;
-    let animationFrameId: number;
-
-    const processVideoFrame = () => {
-      if (!active) return;
-
-      const video = videoRef.current;
-      if (video && video.readyState >= 3) { // HAVE_FUTURE_DATA
-        try {
-          const timestamp = performance.now();
-          const result = faceLandmarker.detectForVideo(video, timestamp);
-
-          if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
-            const landmarks = result.faceLandmarks[0];
-
-            // Key landmarks: eye corners and nose bridge
-            const leftEye = landmarks[130];
-            const rightEye = landmarks[359];
-            const noseBridge = landmarks[168];
-
-            if (leftEye && rightEye && noseBridge) {
-              const centerX = noseBridge.x;
-              const centerY = noseBridge.y;
-              const eyeWidth = Math.abs(rightEye.x - leftEye.x);
-              const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * (180 / Math.PI);
-
-              // Update 2D SVG overlay transform (relative to mirroring scale-x-[-1])
-              setGlassesTransform({
-                left: centerX * 100,
-                top: centerY * 100,
-                width: eyeWidth * 100 * scaleAdjustment,
-                rotate: angle,
-                visible: true
-              });
-
-              setFaceDetected(true);
-
-              // Update refs for 3D render loop
-              if (threeCanvasRef.current) {
-                const canvasW = threeCanvasRef.current.clientWidth;
-                const canvasH = threeCanvasRef.current.clientHeight;
-
-                // Position on mirrored screen: map normalized coordinates (0 to 1) to orthographic space
-                const faceX = (centerX - 0.5) * canvasW;
-                const faceY = (0.5 - centerY) * canvasH;
-
-                faceXRef.current = faceX;
-                faceYRef.current = faceY;
-                faceScaleRef.current = eyeWidth * canvasW * scaleAdjustment;
-                faceRotateZRef.current = angle; // Roll
-
-                // Estimate simple Yaw (rotationY) from eye symmetry to nose bridge
-                const distLeft = Math.abs(noseBridge.x - leftEye.x);
-                const distRight = Math.abs(rightEye.x - noseBridge.x);
-                const yawEstimate = ((distLeft - distRight) / (distLeft + distRight)) * 80;
-                faceRotateYRef.current = yawEstimate;
-              }
-            }
-          } else {
-            // No face detected — fall back to center layout
-            setFaceDetected(false);
-            
-            // Set 2D overlay to center
-            setGlassesTransform({
-              left: 50,
-              top: 42,
-              width: 43,
-              rotate: 0,
-              visible: true
-            });
-
-            // Reset 3D tracking refs to center position
-            faceXRef.current = 0;
-            faceYRef.current = 0;
-            faceScaleRef.current = 1.0;
-            faceRotateZRef.current = 0;
-            faceRotateYRef.current = 0;
-          }
-        } catch (err) {
-          console.error("Error detecting face landmarks:", err);
-        }
-      }
-
-      animationFrameId = requestAnimationFrame(processVideoFrame);
-    };
-
-    processVideoFrame();
-
-    return () => {
-      active = false;
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-    };
-  }, [faceLandmarker, stream, scaleAdjustment]);
-
-  // Combined 3D Render Loop — uses face position when tracked, and applies manual sliders
+  // Standalone 3D Render Loop — renders the GLB glasses model superimposed in the center of the camera viewport
   useEffect(() => {
     if (!threeLoaded || !glassesModelRef.current || !threeCanvasRef.current) return;
 
@@ -531,31 +390,22 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
             threeCameraRef.current.updateProjectionMatrix();
           }
 
-          // Combine face position + manual offsets
-          const targetX = faceXRef.current + offsetXRef.current;
-          const targetY = faceYRef.current + offsetYRef.current;
+          // Position model in center + manual slider offsets
+          const targetX = offsetXRef.current;
+          const targetY = offsetYRef.current;
 
           glassesModelRef.current.position.set(targetX, targetY, 0);
 
-          // Apply scale: use tracked faceScaleRef if present, otherwise default canvas width factor
-          let finalScale = canvasW * 0.4;
-          if (faceScaleRef.current > 1.0) {
-            finalScale = faceScaleRef.current * extraScaleRef.current;
-          } else {
-            finalScale = canvasW * 0.4 * extraScaleRef.current;
-          }
+          // Apply scale: default relative to viewport width * extraScale manual slider
+          const finalScale = canvasW * 0.45 * extraScaleRef.current;
           glassesModelRef.current.scale.set(finalScale, finalScale, finalScale);
 
-          // Apply combined rotation to inner model (Yaw, Roll, Pitch)
+          // Apply manual rotation sliders (Yaw, Roll, Pitch)
           const innerModel = glassesModelRef.current.children[0];
           if (innerModel) {
-            const yaw = faceRotateYRef.current + rotationYRef.current;
-            const roll = faceRotateZRef.current + rotationZRef.current;
-            const pitch = rotationXRef.current; // manual pitch is usually best
-
-            innerModel.rotation.x = (pitch * Math.PI) / 180;
-            innerModel.rotation.y = (yaw * Math.PI) / 180;
-            innerModel.rotation.z = (roll * Math.PI) / 180;
+            innerModel.rotation.x = (rotationXRef.current * Math.PI) / 180;
+            innerModel.rotation.y = (rotationYRef.current * Math.PI) / 180;
+            innerModel.rotation.z = (rotationZRef.current * Math.PI) / 180;
           }
 
           // Render
