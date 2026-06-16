@@ -308,37 +308,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
       {/* Main Content Area */}
       <main className="flex-1 pl-64 min-h-[calc(100vh-80px)] flex flex-col">
-        {/* Top Header Bar */}
-        <header className="bg-white border-b border-ink/5 py-5 px-10 flex justify-between items-center z-0">
-          <div className="flex items-center gap-4">
-            {/* Elegant Close Icon just like in the user's mock */}
-            <button 
-              onClick={() => setView('dashboard')}
-              className="text-ink/40 hover:text-ink p-1 rounded-lg hover:bg-ink/5 transition-all"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-6">
-            {/* Search Input */}
-            <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Buscar productos..." 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="bg-[#f4f4f4] border border-transparent focus:border-ink/10 focus:bg-white rounded-full py-2 pl-10 pr-4 text-sm w-64 transition-all focus:outline-none"
-              />
-              <Search className="w-4 h-4 text-ink/40 absolute left-3.5 top-3" />
-            </div>
-
-            {/* Profile Avatar */}
-            <div className="w-9 h-9 rounded-full bg-ink/10 border border-ink/10 flex items-center justify-center font-bold text-ink/70 cursor-pointer hover:bg-ink/20 transition-all">
-              A
-            </div>
-          </div>
-        </header>
+        {/* Top Header Bar Removed to save space */}
 
         {/* Dashboard Pages */}
         <div className="p-10 flex-1 flex flex-col gap-8">
@@ -506,10 +476,20 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
           ) : view === 'products' || view === 'lens_options' ? (
             <>
               {/* Inventario Header */}
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-ink mb-1">Inventario General</h1>
                   <p className="text-ink/50 text-sm">Gestiona tus productos y existencias de la tienda.</p>
+                </div>
+                <div className="relative w-full md:w-auto">
+                  <input 
+                    type="text" 
+                    placeholder="Buscar productos..." 
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="bg-white border border-ink/10 focus:border-ink/30 rounded-full py-2.5 pl-11 pr-4 text-sm w-full md:w-72 transition-all focus:outline-none shadow-sm"
+                  />
+                  <Search className="w-4 h-4 text-ink/40 absolute left-4 top-3.5" />
                 </div>
               </div>
 
@@ -697,103 +677,85 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                 <p className="text-ink/50 text-sm font-medium">Administra las citas registradas de tus clientes.</p>
               </div>
 
-              {/* Appointments Table */}
-              <div className="bg-white rounded-2xl shadow-sm border border-ink/5 overflow-hidden">
-                <div className="p-6 border-b border-ink/5 bg-white">
-                   <h3 className="text-lg font-bold text-ink">Registro de Citas</h3>
-                </div>
+              {/* Kanban Board Citas */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mt-8">
+                {[
+                  { id: 'pending', title: 'Pendientes', color: 'bg-orange-400', badge: 'bg-orange-100 text-orange-700' },
+                  { id: 'confirmed', title: 'Confirmados', color: 'bg-green-500', badge: 'bg-green-100 text-green-700' },
+                  { id: 'cancelled', title: 'Cancelados', color: 'bg-red-400', badge: 'bg-red-100 text-red-700' }
+                ].map(col => {
+                  const colAppts = appointments.filter(a => a.status === col.id);
+                  return (
+                    <div key={col.id} className="flex flex-col gap-4 bg-white/50 border border-ink/5 rounded-3xl p-5 min-h-[500px]">
+                      <div className="flex items-center gap-2 mb-2 px-1">
+                        <div className={`w-2.5 h-2.5 rounded-full ${col.color}`}></div>
+                        <h3 className="font-bold text-ink uppercase tracking-wider text-sm">{col.title}</h3>
+                        <span className="bg-white border border-ink/5 text-ink/60 shadow-sm text-xs font-bold px-2 py-0.5 rounded-full ml-auto">
+                          {colAppts.length}
+                        </span>
+                      </div>
+                      
+                      {colAppts.length === 0 && (
+                        <div className="text-center py-10 text-ink/40 font-semibold text-sm border-2 border-dashed border-ink/10 rounded-2xl">
+                          No hay citas
+                        </div>
+                      )}
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-slate-50 text-xs uppercase tracking-widest font-bold border-b border-ink/5">
-                        <th className="px-6 py-4">Cliente</th>
-                        <th className="px-6 py-4">Servicio</th>
-                        <th className="px-6 py-4">Fecha/Hora</th>
-                        <th className="px-6 py-4">Estado</th>
-                        <th className="px-6 py-4 text-right">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-ink/5">
-                      {appointments.length === 0 ? (
-                        <tr><td colSpan={5} className="text-center py-12 text-ink/50 font-bold">No hay citas registradas.</td></tr>
-                      ) : appointments.map(a => {
+                      {colAppts.map(a => {
                         const isEditing = editingAppointmentId === a.id;
-                        
                         if (isEditing) {
                           return (
-                            <tr key={a.id} className="bg-slate-50 text-sm">
-                              <td className="px-6 py-4 flex flex-col gap-2">
-                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white" value={editApptData.name || ''} onChange={e => setEditApptData({...editApptData, name: e.target.value})} placeholder="Nombre" />
-                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white text-xs" value={editApptData.email || ''} onChange={e => setEditApptData({...editApptData, email: e.target.value})} placeholder="Correo" />
-                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white text-xs" value={editApptData.phone || ''} onChange={e => setEditApptData({...editApptData, phone: e.target.value})} placeholder="Teléfono" />
-                              </td>
-                              <td className="px-6 py-4">
-                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white" value={editApptData.service || ''} onChange={e => setEditApptData({...editApptData, service: e.target.value})} placeholder="Servicio" />
-                              </td>
-                              <td className="px-6 py-4 flex flex-col gap-2">
-                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white" type="date" value={editApptData.date || ''} onChange={e => setEditApptData({...editApptData, date: e.target.value})} />
-                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white animate-none" type="time" value={editApptData.time || ''} onChange={e => setEditApptData({...editApptData, time: e.target.value})} />
-                              </td>
-                              <td className="px-6 py-4">
-                                <select className="border border-ink/10 p-2 rounded-lg bg-white w-full text-sm" value={editApptData.status || ''} onChange={e => setEditApptData({...editApptData, status: e.target.value as any})}>
-                                  <option value="pending">PENDIENTE</option>
-                                  <option value="confirmed">CONFIRMADO</option>
-                                  <option value="cancelled">CANCELADO</option>
-                                </select>
-                              </td>
-                              <td className="px-6 py-4 text-right flex gap-2 justify-end">
-                                <button onClick={() => handleSaveAppointment(a.id)} className="p-2 text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm">
-                                  <Save className="w-5 h-5" />
-                                </button>
-                                <button onClick={() => setEditingAppointmentId(null)} className="p-2 text-ink/50 hover:bg-ink/10 rounded-lg">
-                                  <X className="w-5 h-5" />
-                                </button>
-                              </td>
-                            </tr>
+                            <div key={a.id} className="bg-white rounded-2xl p-5 shadow-lg border border-ink/10 flex flex-col gap-3 relative z-10">
+                               <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-sm font-bold focus:outline-none focus:border-ink/30" value={editApptData.name || ''} onChange={e => setEditApptData({...editApptData, name: e.target.value})} placeholder="Nombre" />
+                               <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" value={editApptData.email || ''} onChange={e => setEditApptData({...editApptData, email: e.target.value})} placeholder="Correo" />
+                               <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" value={editApptData.phone || ''} onChange={e => setEditApptData({...editApptData, phone: e.target.value})} placeholder="Teléfono" />
+                               <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" value={editApptData.service || ''} onChange={e => setEditApptData({...editApptData, service: e.target.value})} placeholder="Servicio" />
+                               <div className="flex gap-2">
+                                 <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" type="date" value={editApptData.date || ''} onChange={e => setEditApptData({...editApptData, date: e.target.value})} />
+                                 <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" type="time" value={editApptData.time || ''} onChange={e => setEditApptData({...editApptData, time: e.target.value})} />
+                               </div>
+                               <select className="border border-ink/10 p-2.5 rounded-xl bg-slate-50 w-full text-xs font-bold focus:outline-none focus:border-ink/30" value={editApptData.status || ''} onChange={e => setEditApptData({...editApptData, status: e.target.value as any})}>
+                                 <option value="pending">PENDIENTE</option>
+                                 <option value="confirmed">CONFIRMADO</option>
+                                 <option value="cancelled">CANCELADO</option>
+                               </select>
+                               <div className="flex justify-end gap-2 mt-2 pt-3 border-t border-ink/5">
+                                 <button onClick={() => setEditingAppointmentId(null)} className="px-3 py-2 text-xs font-bold text-ink/50 hover:bg-ink/10 rounded-xl transition-colors">Cancelar</button>
+                                 <button onClick={() => handleSaveAppointment(a.id)} className="px-4 py-2 text-xs font-bold text-white bg-ink rounded-xl hover:bg-accent transition-colors flex items-center gap-1.5 shadow-sm"><Save className="w-4 h-4" /> Guardar</button>
+                               </div>
+                            </div>
                           );
                         }
 
                         return (
-                          <tr key={a.id} className="hover:bg-slate-50/50 transition-all">
-                            <td className="px-6 py-4">
-                              <div className="font-bold text-ink">{a.name}</div>
-                              <div className="text-xs font-semibold text-ink/50 mt-0.5">{a.email} | {a.phone}</div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="bg-ink/5 text-ink/80 px-2.5 py-1 rounded-full text-xs font-bold">
-                                {a.service}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-xs font-bold text-ink/70">
-                              {a.date} <br /> <span className="text-xs text-ink/50 font-semibold">{a.time}</span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                a.status === 'confirmed' ? 'bg-green-100 text-green-700' : 
-                                a.status === 'cancelled' ? 'bg-red-100 text-red-700' : 
-                                'bg-orange-100 text-orange-700'
-                              }`}>
-                                {a.status === 'confirmed' ? 'CONFIRMADO' : a.status === 'cancelled' ? 'CANCELADO' : 'PENDIENTE'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right flex gap-2 justify-end items-center h-full pt-6">
-                              <button onClick={() => { setEditingAppointmentId(a.id); setEditApptData(a); }} className="text-blue-500 hover:bg-blue-50 rounded-lg p-2" title="Editar cita">
-                                <Edit2 className="w-4.5 h-4.5" />
-                              </button>
-                              <button onClick={() => handleUpdateStatus(a.id, 'confirmed')} className="text-green-600 hover:bg-green-50 rounded-lg p-2" title="Confirmar">
-                                <CheckCircle className="w-4.5 h-4.5" />
-                              </button>
-                              <button onClick={() => handleUpdateStatus(a.id, 'cancelled')} className="text-red-400 hover:bg-red-50 rounded-lg p-2" title="Cancelar">
-                                <X className="w-4.5 h-4.5" />
-                              </button>
-                            </td>
-                          </tr>
+                          <div key={a.id} className="bg-white rounded-2xl p-5 shadow-sm border border-ink/5 hover:shadow-md transition-all group relative cursor-default">
+                            <div className="flex justify-between items-start mb-3">
+                              <span className="bg-ink/5 text-ink px-2.5 py-1 rounded-md text-[10px] font-bold tracking-widest uppercase truncate max-w-[140px]">{a.service}</span>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-1 rounded-lg border border-ink/5 shadow-sm">
+                                <button onClick={() => { setEditingAppointmentId(a.id); setEditApptData(a); }} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-md" title="Editar cita"><Edit2 className="w-3.5 h-3.5" /></button>
+                                {col.id !== 'confirmed' && <button onClick={() => handleUpdateStatus(a.id, 'confirmed')} className="p-1.5 text-green-600 hover:bg-green-50 rounded-md" title="Confirmar cita"><CheckCircle className="w-3.5 h-3.5" /></button>}
+                                {col.id !== 'cancelled' && <button onClick={() => handleUpdateStatus(a.id, 'cancelled')} className="p-1.5 text-red-400 hover:bg-red-50 rounded-md" title="Cancelar cita"><X className="w-3.5 h-3.5" /></button>}
+                              </div>
+                            </div>
+                            
+                            <h4 className="font-bold text-ink text-sm mb-1">{a.name}</h4>
+                            <div className="text-xs text-ink/60 space-y-1 mb-5 font-medium">
+                              <p>{a.email}</p>
+                              <p>{a.phone}</p>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-xs font-bold text-ink/70 bg-slate-50 p-2.5 rounded-xl border border-ink/5">
+                              <Calendar className="w-4 h-4 opacity-50" />
+                              <span>{a.date}</span>
+                              <span className="text-ink/30">•</span>
+                              <span>{a.time}</span>
+                            </div>
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             </>
           ) : (

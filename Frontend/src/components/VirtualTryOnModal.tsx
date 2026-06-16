@@ -367,6 +367,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
 
       try {
         let results: any = null;
+        let didEvaluate = false;
 
         if (captureMode === 'live') {
           const video = videoRef.current;
@@ -375,19 +376,22 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
             if (currentTime !== lastVideoTime) {
               lastVideoTime = currentTime;
               results = faceLandmarker.detectForVideo(video, performance.now());
+              didEvaluate = true;
             }
           }
         } else if (captureMode === 'photo' && staticImageRef.current) {
           if (staticImageRef.current.complete && staticImageRef.current.naturalWidth > 0) {
             if (!cachedResultsRef.current) {
-              // Only detect once per image to save CPU
-              cachedResultsRef.current = faceLandmarker.detect(staticImageRef.current);
+              // Only detect once per image to save CPU. Use detectForVideo because runningMode is VIDEO.
+              cachedResultsRef.current = faceLandmarker.detectForVideo(staticImageRef.current, performance.now());
             }
             results = cachedResultsRef.current;
+            didEvaluate = true;
           }
         }
 
-        if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
+        if (didEvaluate) {
+          if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
               const landmarks = results.faceLandmarks[0];
               const leftEye = landmarks[33];
               const rightEye = landmarks[263];
@@ -497,7 +501,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
               setGlassesTransform(prev => ({ ...prev, visible: false }));
               setFaceDetected(false);
             }
-
+        } // Cierra if (didEvaluate)
       } catch (e) {
         console.error("Frame tracking error:", e);
       }
