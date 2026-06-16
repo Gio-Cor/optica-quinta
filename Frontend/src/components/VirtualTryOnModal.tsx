@@ -137,6 +137,13 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const offsetYRef = useRef(0);
   const extraScaleRef = useRef(1.0);
 
+  // MediaPipe Face Tracking Refs
+  const faceXRef = useRef(0);
+  const faceYRef = useRef(0);
+  const faceScaleRef = useRef(1.0);
+  const faceRotateZRef = useRef(0);
+  const faceRotateYRef = useRef(0);
+
   const threeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const threeSceneRef = useRef<any>(null);
   const threeCameraRef = useRef<any>(null);
@@ -402,7 +409,105 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     }
   }, [stream]);
 
-  // Independent 3D render loop — runs as soon as GLB model is loaded, NO MediaPipe dependency
+  // MediaPipe Face Tracking Loop
+  useEffect(() => {
+    if (!faceLandmarker || !stream) return;
+
+    let active = true;
+    let animationFrameId: number;
+
+    const processVideoFrame = () => {
+      if (!active) return;
+
+      const video = videoRef.current;
+      if (video && video.readyState >= 3) { // HAVE_FUTURE_DATA
+        try {
+          const timestamp = performance.now();
+          const result = faceLandmarker.detectForVideo(video, timestamp);
+
+          if (result && result.faceLandmarks && result.faceLandmarks.length > 0) {
+            const landmarks = result.faceLandmarks[0];
+
+            // Key landmarks: eye corners and nose bridge
+            const leftEye = landmarks[130];
+            const rightEye = landmarks[359];
+            const noseBridge = landmarks[168];
+
+            if (leftEye && rightEye && noseBridge) {
+              const centerX = noseBridge.x;
+              const centerY = noseBridge.y;
+              const eyeWidth = Math.abs(rightEye.x - leftEye.x);
+              const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * (180 / Math.PI);
+
+              // Update 2D SVG overlay transform (relative to mirroring scale-x-[-1])
+              setGlassesTransform({
+                left: centerX * 100,
+                top: centerY * 100,
+                width: eyeWidth * 100 * scaleAdjustment,
+                rotate: angle,
+                visible: true
+              });
+
+              setFaceDetected(true);
+
+              // Update refs for 3D render loop
+              if (threeCanvasRef.current) {
+                const canvasW = threeCanvasRef.current.clientWidth;
+                const canvasH = threeCanvasRef.current.clientHeight;
+
+                // Position on mirrored screen: map normalized coordinates (0 to 1) to orthographic space
+                const faceX = (centerX - 0.5) * canvasW;
+                const faceY = (0.5 - centerY) * canvasH;
+
+                faceXRef.current = faceX;
+                faceYRef.current = faceY;
+                faceScaleRef.current = eyeWidth * canvasW * scaleAdjustment;
+                faceRotateZRef.current = angle; // Roll
+
+                // Estimate simple Yaw (rotationY) from eye symmetry to nose bridge
+                const distLeft = Math.abs(noseBridge.x - leftEye.x);
+                const distRight = Math.abs(rightEye.x - noseBridge.x);
+                const yawEstimate = ((distLeft - distRight) / (distLeft + distRight)) * 80;
+                faceRotateYRef.current = yawEstimate;
+              }
+            }
+          } else {
+            // No face detected — fall back to center layout
+            setFaceDetected(false);
+            
+            // Set 2D overlay to center
+            setGlassesTransform({
+              left: 50,
+              top: 42,
+              width: 43,
+              rotate: 0,
+              visible: true
+            });
+
+            // Reset 3D tracking refs to center position
+            faceXRef.current = 0;
+            faceYRef.current = 0;
+            faceScaleRef.current = 1.0;
+            faceRotateZRef.current = 0;
+            faceRotateYRef.current = 0;
+          }
+        } catch (err) {
+          console.error("Error detecting face landmarks:", err);
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(processVideoFrame);
+    };
+
+    processVideoFrame();
+
+    return () => {
+      active = false;
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
+  }, [faceLandmarker, stream, scaleAdjustment]);
+
+  // Combined 3D Render Loop — uses face position when tracked, and applies manual sliders
   useEffect(() => {
     if (!threeLoaded || !glassesModelRef.current || !threeCanvasRef.current) return;
 
@@ -426,24 +531,32 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
             threeCameraRef.current.updateProjectionMatrix();
           }
 
-          // Position model in center
-          glassesModelRef.current.position.set(
-            offsetXRef.current, 
-            offsetYRef.current, 
-            0
-          );
+          // Combine face position + manual offsets
+          const targetX = faceXRef.current + offsetXRef.current;
+          const targetY = faceYRef.current + offsetYRef.current;
 
-          // Apply manual rotation sliders to inner model
+          glassesModelRef.current.position.set(targetX, targetY, 0);
+
+          // Apply scale: use tracked faceScaleRef if present, otherwise default canvas width factor
+          let finalScale = canvasW * 0.4;
+          if (faceScaleRef.current > 1.0) {
+            finalScale = faceScaleRef.current * extraScaleRef.current;
+          } else {
+            finalScale = canvasW * 0.4 * extraScaleRef.current;
+          }
+          glassesModelRef.current.scale.set(finalScale, finalScale, finalScale);
+
+          // Apply combined rotation to inner model (Yaw, Roll, Pitch)
           const innerModel = glassesModelRef.current.children[0];
           if (innerModel) {
-            innerModel.rotation.x = (rotationXRef.current * Math.PI) / 180;
-            innerModel.rotation.y = (rotationYRef.current * Math.PI) / 180;
-            innerModel.rotation.z = (rotationZRef.current * Math.PI) / 180;
-          }
+            const yaw = faceRotateYRef.current + rotationYRef.current;
+            const roll = faceRotateZRef.current + rotationZRef.current;
+            const pitch = rotationXRef.current; // manual pitch is usually best
 
-          // Apply scale
-          const scaleVal = canvasW * 0.4 * extraScaleRef.current;
-          glassesModelRef.current.scale.set(scaleVal, scaleVal, scaleVal);
+            innerModel.rotation.x = (pitch * Math.PI) / 180;
+            innerModel.rotation.y = (yaw * Math.PI) / 180;
+            innerModel.rotation.z = (roll * Math.PI) / 180;
+          }
 
           // Render
           threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
@@ -454,8 +567,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       animationFrameId = requestAnimationFrame(renderLoop);
     }
 
-    setFaceDetected(true); // Show as active
-    setGlassesTransform({ left: 50, top: 42, width: 0, rotate: 0, visible: false }); // Hide SVG overlay
     renderLoop();
 
     return () => {
