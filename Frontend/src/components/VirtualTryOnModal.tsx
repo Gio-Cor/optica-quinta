@@ -234,7 +234,10 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         renderer.render(scene, camera);
       },
       undefined,
-      (err: any) => console.error("Error loading GLB model in VirtualTryOnModal:", err)
+      (err: any) => {
+        console.error("Error loading GLB model in VirtualTryOnModal:", err);
+        setError(`Error cargando 3D: ${err.message || 'El modelo está corrupto o no se puede cargar.'}`);
+      }
     );
   };
 
@@ -513,10 +516,27 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                     visible: false
                   });
                 } else {
-                  // --- 2D / SVG Overlay Tracking ---
-                  // Hide 3D model if it exists
-                  if (glassesModelRef.current) {
-                    glassesModelRef.current.position.set(-1000, -1000, 0);
+                  // --- Fallback Idle State (No face detected) ---
+                  // Instead of hiding the 3D model, let's put it in the center and spin it 
+                  // to verify that ThreeJS is rendering the model successfully!
+                  if (glassesModelRef.current && threeCanvasRef.current) {
+                    const canvasW = threeCanvasRef.current.clientWidth;
+                    
+                    glassesModelRef.current.position.set(0, 0, 0); // Center of orthographic camera
+                    
+                    // Reset internal rotation and apply a continuous spin
+                    const innerModel = glassesModelRef.current.children[0];
+                    if (innerModel) {
+                      innerModel.rotation.set(0, 0, 0);
+                    }
+                    glassesModelRef.current.rotation.x = 0;
+                    glassesModelRef.current.rotation.z = 0;
+                    glassesModelRef.current.rotation.y += 0.02; // Spin on Y axis
+                    
+                    // Give it a decent size
+                    const fallbackScale = canvasW * 0.4;
+                    glassesModelRef.current.scale.set(fallbackScale, fallbackScale, fallbackScale);
+                    
                     if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
                       threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
                     }
