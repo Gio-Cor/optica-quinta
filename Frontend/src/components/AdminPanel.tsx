@@ -214,17 +214,18 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
     }
   };
 
-  const handleBulkDiscount = async () => {
-    if (bulkDiscountPercent < 0 || bulkDiscountPercent > 100) return alert('Porcentaje inválido.');
+  const handleBulkDiscount = async (remove = false) => {
+    const finalPercent = remove ? 0 : bulkDiscountPercent;
+    if (!remove && (finalPercent <= 0 || finalPercent > 100)) return alert('Porcentaje inválido. Usa un valor de 1 a 100.');
     if (selectedProductIds.length === 0) return alert('Selecciona al menos un producto.');
     try {
       for (const id of selectedProductIds) {
-        await api.updateProduct(id, { discount_percent: bulkDiscountPercent });
+        await api.updateProduct(id, { discount_percent: finalPercent });
       }
       refreshData();
       setSelectedProductIds([]);
       setBulkDiscountPercent(0);
-      alert('¡Descuento aplicado masivamente!');
+      alert(remove ? 'Descuentos eliminados correctamente.' : '¡Descuento aplicado masivamente!');
     } catch (error) {
       console.error(error);
       alert('Error al aplicar descuentos');
@@ -536,10 +537,16 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                           className="w-16 h-7 text-xs px-2 rounded bg-white border border-accent/20 text-ink focus:outline-none"
                         />
                         <button 
-                          onClick={handleBulkDiscount}
+                          onClick={() => handleBulkDiscount(false)}
                           className="bg-accent text-white text-[10px] uppercase font-bold px-3 py-1.5 rounded hover:bg-accent/80 transition-colors"
                         >
                           Aplicar
+                        </button>
+                        <button 
+                          onClick={() => handleBulkDiscount(true)}
+                          className="bg-red-500 text-white text-[10px] uppercase font-bold px-3 py-1.5 rounded hover:bg-red-600 transition-colors ml-1"
+                        >
+                          Quitar
                         </button>
                       </div>
                     </div>

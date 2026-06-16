@@ -193,8 +193,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      {!(activeTab === 'admin' && loggedInUser?.role === 'admin') && (
-        <Navbar
+      <Navbar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           cartCount={cartItems.reduce((acc, item) => acc + item.quantity, 0)}
@@ -206,14 +205,13 @@ export default function App() {
             localStorage.removeItem('adminUser');
           }}
         />
-      )}
 
       <main>
         {renderContent()}
       </main>
 
-      {!(activeTab === 'admin' && loggedInUser?.role === 'admin') && <Footer setActiveTab={setActiveTab} />}
-      {!(activeTab === 'admin' && loggedInUser?.role === 'admin') && <Chatbot />}
+      <Footer setActiveTab={setActiveTab} />
+      <Chatbot />
 
       <AnimatePresence>
         {tryOnProduct && (

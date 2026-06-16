@@ -106,12 +106,20 @@ export const Catalog = ({ onTryOn, onAddToCart, onViewDetail }: { onTryOn: (p: P
                 </div>
 
                 {product.is_featured && (
-                  <div className="absolute top-4 right-4">
+                  <div className="absolute top-4 right-4 z-10">
                     <span className="bg-accent text-white shadow-md px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold">
                       Destacado
                     </span>
                   </div>
                 )}
+
+                {product.stock && product.stock >= 10 ? (
+                  <div className={`absolute right-4 z-10 ${product.is_featured ? 'top-12' : 'top-4'}`}>
+                    <span className="bg-orange-500 text-white shadow-md px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold">
+                      PROMO 2x1
+                    </span>
+                  </div>
+                ) : null}
                 
                 {product.discount_percent && product.discount_percent > 0 ? (
                   <div className="absolute bottom-4 left-4">
