@@ -288,9 +288,9 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
     .slice(0, 3);
 
   return (
-    <div className="flex min-h-screen bg-[#f4f4f4] text-ink font-sans">
+    <div className="flex min-h-screen bg-[#f4f4f4] text-ink font-sans pt-20">
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-white border-r border-ink/5 flex flex-col justify-between py-8 px-6 fixed top-0 h-screen z-10">
+      <aside className="w-64 bg-white border-r border-ink/5 flex flex-col justify-between py-8 px-6 fixed top-20 h-[calc(100vh-5rem)] z-10">
         <div>
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10 px-2">
