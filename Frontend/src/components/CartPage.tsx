@@ -143,7 +143,10 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
   const calculateTotal = () => {
     return items.reduce((total, item, index) => {
       if (selectedItems[index]) {
-        const unitPrice = item.product.price + item.lensOption.price_add;
+        const basePrice = item.product.discount_percent && item.product.discount_percent > 0
+          ? item.product.price * (1 - item.product.discount_percent / 100)
+          : item.product.price;
+        const unitPrice = basePrice + item.lensOption.price_add;
         return total + calculateItemTotal(unitPrice, item.quantity);
       }
       return total;
@@ -210,7 +213,17 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
                         <h3 className="text-ink/60 text-sm uppercase tracking-wider mb-1">Marco: <span className="font-bold text-ink">{item.product.name}</span></h3>
                         <p className="text-ink/60 text-sm">Color: <span className="text-ink">Carey</span></p>
                       </div>
-                      <span className="font-bold text-ink">CLP${item.product.price.toLocaleString('es-CL')}</span>
+                      <div className="text-right">
+                        {item.product.discount_percent && item.product.discount_percent > 0 ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-xs text-ink/40 line-through">CLP${item.product.price.toLocaleString('es-CL')}</span>
+                            <span className="font-bold text-red-500">CLP${(item.product.price * (1 - item.product.discount_percent / 100)).toLocaleString('es-CL')}</span>
+                            <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold mt-1">-{item.product.discount_percent}%</span>
+                          </div>
+                        ) : (
+                          <span className="font-bold text-ink">CLP${item.product.price.toLocaleString('es-CL')}</span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mb-4">
@@ -252,7 +265,14 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
                     <div className="mt-4 pt-4 border-t border-ink/5 flex justify-between items-center">
                       <span className="font-bold text-ink">Subtotal {item.quantity > 1 && <span className="text-accent text-xs ml-2 font-normal">(50% dcto aplicado a segundas uds.)</span>}</span>
-                      <span className="font-bold text-lg text-ink">CLP${calculateItemTotal(item.product.price + item.lensOption.price_add, item.quantity).toLocaleString('es-CL')}</span>
+                      <span className="font-bold text-lg text-ink">
+                        CLP${calculateItemTotal(
+                          (item.product.discount_percent && item.product.discount_percent > 0
+                            ? item.product.price * (1 - item.product.discount_percent / 100)
+                            : item.product.price) + item.lensOption.price_add,
+                          item.quantity
+                        ).toLocaleString('es-CL')}
+                      </span>
                     </div>
 
                   </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Trash2, CheckCircle, X, Edit2, Save,
   LayoutDashboard, Package, Users, BarChart3, LogOut, Search, Sliders, Calendar,
   TrendingUp, UserPlus, AlertCircle, ShoppingBag, Plus, Eye, Check, ShieldAlert, RefreshCw
@@ -15,7 +15,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   const [view, setView] = useState<'dashboard' | 'products' | 'lens_options' | 'appointments' | 'reports'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [showOnlyFeatured, setShowOnlyFeatured] = useState(false);
-  
+
   // Lens Options CRUD State
   const [isAddingLensOption, setIsAddingLensOption] = useState(false);
   const [newLensOption, setNewLensOption] = useState({ name: '', price_add: 0, is_active: true });
@@ -201,7 +201,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   };
 
   const toggleProductSelection = (id: number) => {
-    setSelectedProductIds(prev => 
+    setSelectedProductIds(prev =>
       prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
     );
   };
@@ -239,7 +239,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
           <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-3xl font-sans font-bold text-ink tracking-tight mb-4">Acceso Denegado</h2>
           <p className="text-ink/60 font-medium mb-8">No tienes permisos de administrador para acceder al Panel de Control.</p>
-          <button 
+          <button
             onClick={() => { if (onLogout) onLogout(); }}
             className="w-full bg-accent text-white py-4 rounded-xl font-bold text-lg hover:bg-accent/90 transition-all"
           >
@@ -264,13 +264,13 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   const criticalStockCount = products.filter(p => (p.stock || 0) < 5).length;
   const outOfStockCount = products.filter(p => (p.stock || 0) === 0).length;
 
-  const filteredProducts = products.filter(p => 
-    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.brand.toLowerCase().includes(searchTerm.toLowerCase())) &&
+  const filteredProducts = products.filter(p =>
+    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.brand.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (!showOnlyFeatured || p.is_featured)
   );
   // --- Dynamic Dashboard Data ---
-  const last7Days = Array.from({length: 7}).map((_, i) => {
+  const last7Days = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     return d.toISOString().split('T')[0];
@@ -297,53 +297,49 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10 px-2">
             <div className="bg-ink text-white p-2 rounded-xl">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M2.002 12c.324-1.583 1.4-3 3-4h14c1.6 1 2.676 2.417 3 4-.324 1.583-1.4 3-3 4H5.002c-1.6-1-2.676-2.417-3-4z"/><circle cx="8" cy="12" r="2.5"/><circle cx="16" cy="12" r="2.5"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M2.002 12c.324-1.583 1.4-3 3-4h14c1.6 1 2.676 2.417 3 4-.324 1.583-1.4 3-3 4H5.002c-1.6-1-2.676-2.417-3-4z" /><circle cx="8" cy="12" r="2.5" /><circle cx="16" cy="12" r="2.5" /></svg>
             </div>
             <span className="font-serif font-bold text-xl tracking-tight text-ink">Óptica Admin</span>
           </div>
 
           {/* Navigation Links */}
           <nav className="space-y-1">
-            <button 
+            <button
               onClick={() => setView('dashboard')}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${
-                view === 'dashboard' 
-                  ? 'bg-ink text-white shadow-md' 
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'dashboard'
+                  ? 'bg-ink text-white shadow-md'
                   : 'text-ink/60 hover:text-ink hover:bg-ink/5'
-              }`}
+                }`}
             >
               <LayoutDashboard className="w-5 h-5" />
               <span>Dashboard</span>
             </button>
-            <button 
+            <button
               onClick={() => setView('products')}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${
-                view === 'products' || view === 'lens_options'
-                  ? 'bg-ink text-white shadow-md' 
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'products' || view === 'lens_options'
+                  ? 'bg-ink text-white shadow-md'
                   : 'text-ink/60 hover:text-ink hover:bg-ink/5'
-              }`}
+                }`}
             >
               <Package className="w-5 h-5" />
               <span>Inventario</span>
             </button>
-            <button 
+            <button
               onClick={() => setView('appointments')}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${
-                view === 'appointments' 
-                  ? 'bg-ink text-white shadow-md' 
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'appointments'
+                  ? 'bg-ink text-white shadow-md'
                   : 'text-ink/60 hover:text-ink hover:bg-ink/5'
-              }`}
+                }`}
             >
               <Users className="w-5 h-5" />
               <span>Gestión Usuarios</span>
             </button>
-            <button 
+            <button
               onClick={() => setView('reports')}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${
-                view === 'reports' 
-                  ? 'bg-ink text-white shadow-md' 
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'reports'
+                  ? 'bg-ink text-white shadow-md'
                   : 'text-ink/60 hover:text-ink hover:bg-ink/5'
-              }`}
+                }`}
             >
               <BarChart3 className="w-5 h-5" />
               <span>Reportes</span>
@@ -353,7 +349,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
         {/* Sidebar Footer */}
         <div>
-          <button 
+          <button
             onClick={() => { if (onLogout) onLogout(); }}
             className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100"
           >
@@ -377,13 +373,6 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                   <h1 className="text-3xl font-bold font-sans tracking-tight text-ink mb-1">Dashboard General</h1>
                   <p className="text-ink/50 text-sm font-medium">Resumen operativo de la Óptica.</p>
                 </div>
-                <button
-                  onClick={refreshData}
-                  className="flex items-center gap-2 bg-ink hover:bg-accent text-white font-bold px-5 py-3 rounded-xl transition-all shadow-md active:scale-95 duration-200"
-                >
-                  <RefreshCw className="w-4.5 h-4.5 animate-spin-hover" />
-                  <span>Sincronizar Datos</span>
-                </button>
               </div>
 
               {/* Stats Cards Grid */}
@@ -466,7 +455,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                     <h3 className="text-lg font-bold text-ink">Ingresos de la Semana</h3>
                     <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-md">Real-Time</span>
                   </div>
-                  
+
                   {/* Dynamic rounded SVG bar chart */}
                   <div className="h-64 relative flex items-end justify-between px-4 pb-6 pt-4">
                     {/* Grid lines */}
@@ -484,7 +473,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                         <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-ink text-white text-[10px] font-bold py-1 px-2 rounded-lg pointer-events-none transition-opacity whitespace-nowrap z-20">
                           ${b.total.toLocaleString('es-CL')}
                         </div>
-                        <div 
+                        <div
                           className="w-10 bg-ink rounded-lg hover:bg-accent transition-all duration-300"
                           style={{ height: `${Math.max(5, (b.total / maxSale) * 100)}%` }}
                         ></div>
@@ -503,7 +492,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
                   <div className="flex flex-col gap-4 flex-1">
                     {topProducts.length === 0 ? (
-                       <div className="flex-1 flex items-center justify-center text-ink/40 text-sm font-semibold border-2 border-dashed border-ink/5 rounded-2xl">Sin datos</div>
+                      <div className="flex-1 flex items-center justify-center text-ink/40 text-sm font-semibold border-2 border-dashed border-ink/5 rounded-2xl">Sin datos</div>
                     ) : (
                       topProducts.map((p, i) => (
                         <div key={p.id} className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-ink/5">
@@ -515,9 +504,9 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                             <p className="text-xs font-semibold text-accent truncate">{p.brand}</p>
                           </div>
                           <div className="text-right">
-                             <div className="text-xs font-bold text-ink bg-white px-2 py-1 rounded-md shadow-sm border border-ink/5">
-                               {p.stock} ud.
-                             </div>
+                            <div className="text-xs font-bold text-ink bg-white px-2 py-1 rounded-md shadow-sm border border-ink/5">
+                              {p.stock} ud.
+                            </div>
                           </div>
                         </div>
                       ))
@@ -539,21 +528,21 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                     <div className="flex items-center gap-2 bg-accent/10 text-accent px-3 py-1.5 rounded-full border border-accent/20">
                       <span className="text-xs font-bold whitespace-nowrap hidden sm:inline">{selectedProductIds.length} selec.</span>
                       <div className="flex items-center gap-1 sm:border-l border-accent/20 sm:pl-2">
-                        <input 
-                          type="number" 
-                          placeholder="% Desc" 
+                        <input
+                          type="number"
+                          placeholder="% Desc"
                           min="0" max="100"
                           value={bulkDiscountPercent || ''}
                           onChange={e => setBulkDiscountPercent(Number(e.target.value))}
                           className="w-16 h-7 text-xs px-2 rounded bg-white border border-accent/20 text-ink focus:outline-none"
                         />
-                        <button 
+                        <button
                           onClick={() => handleBulkDiscount(false)}
                           className="bg-accent text-white text-[10px] uppercase font-bold px-3 py-1.5 rounded hover:bg-accent/80 transition-colors"
                         >
                           Aplicar
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleBulkDiscount(true)}
                           className="bg-red-500 text-white text-[10px] uppercase font-bold px-3 py-1.5 rounded hover:bg-red-600 transition-colors ml-1"
                         >
@@ -563,8 +552,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                     </div>
                   )}
                   <label className="flex items-center gap-2 text-sm font-bold cursor-pointer text-ink/70 hover:text-ink transition-colors">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={showOnlyFeatured}
                       onChange={e => setShowOnlyFeatured(e.target.checked)}
                       className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent"
@@ -572,9 +561,9 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                     Solo Destacados
                   </label>
                   <div className="relative flex-1 md:w-auto">
-                    <input 
-                      type="text" 
-                      placeholder="Buscar productos..." 
+                    <input
+                      type="text"
+                      placeholder="Buscar productos..."
                       value={searchTerm}
                       onChange={e => setSearchTerm(e.target.value)}
                       className="bg-white border border-ink/10 focus:border-ink/30 rounded-full py-2.5 pl-11 pr-4 text-sm w-full md:w-72 transition-all focus:outline-none shadow-sm"
@@ -586,232 +575,232 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
               {/* Products Table */}
               <div className="bg-white rounded-2xl shadow-sm border border-ink/5 overflow-hidden">
-                  <div className="p-6 border-b border-ink/5 flex justify-between items-center bg-white">
-                     <h3 className="text-lg font-bold text-ink">Catálogo de Artículos</h3>
-                     <button 
-                       onClick={() => setIsAddingProduct(!isAddingProduct)}
-                       className="bg-ink text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-md hover:bg-accent transition-colors flex items-center gap-1.5"
-                     >
-                       {isAddingProduct ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                       <span>{isAddingProduct ? 'Cancelar' : 'Agregar Producto'}</span>
-                     </button>
-                  </div>
-
-                  {isAddingProduct && (
-                    <div className="p-6 bg-paper/30 border-b border-ink/10">
-                      <form onSubmit={handleCreateProduct} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                         <div>
-                           <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Nombre</label>
-                           <input required value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" placeholder="Ej: Lentes Aviador" />
-                         </div>
-                         <div>
-                           <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Marca</label>
-                           <input required value={newProduct.brand} onChange={e => setNewProduct({...newProduct, brand: e.target.value})} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" placeholder="Ej: Ray-Ban" />
-                         </div>
-                         <div>
-                           <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Precio ($)</label>
-                           <input required type="number" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
-                         </div>
-                         <div>
-                           <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Stock</label>
-                           <input required type="number" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: Number(e.target.value)})} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
-                         </div>
-                         <div>
-                           <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Categoría</label>
-                           <select required value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value as 'lente' | 'accesorio'})} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white">
-                             <option value="lente">Lente</option>
-                             <option value="accesorio">Accesorio</option>
-                           </select>
-                         </div>
-                         <div>
-                           <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">% Descuento</label>
-                           <input type="number" min="0" max="100" value={newProduct.discount_percent || 0} onChange={e => setNewProduct({...newProduct, discount_percent: Number(e.target.value)})} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
-                         </div>
-                         <div className="flex items-center h-full md:pt-6">
-                           <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-ink">
-                             <input type="checkbox" checked={newProduct.is_featured || false} onChange={e => setNewProduct({...newProduct, is_featured: e.target.checked})} className="w-5 h-5 rounded border-ink/20 text-accent focus:ring-accent" />
-                             Producto Destacado
-                           </label>
-                         </div>
-                         <div>
-                           <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Imagen del Producto (Catálogo)</label>
-                           <input required type="file" accept="image/*" onChange={handleFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                           {newProduct.image && (
-                             <div className="mt-3">
-                               <img src={newProduct.image} alt="Vista previa" className="h-16 rounded-lg object-cover border border-ink/10 shadow-sm" />
-                             </div>
-                           )}
-                         </div>
-                         <div>
-                            <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Foto Modelo Probador Virtual (PNG Transparente)</label>
-                            <input type="file" accept="image/png,image/webp" onChange={handleArFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                            {newProduct.ar_image && (
-                              <div className="mt-3">
-                                <img src={newProduct.ar_image} alt="Vista previa probador" className="h-16 rounded-lg object-contain border border-ink/10 shadow-sm bg-slate-100 p-1" />
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Modelo 3D Anteojos (Archivo .GLB)</label>
-                            <input type="file" accept=".glb" onChange={handleModelFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                            {newProduct.model_3d && (
-                              <div className="mt-3 text-xs text-green-600 font-bold flex items-center gap-1.5">
-                                <span>✓ Modelo 3D cargado correctamente ({Math.round(newProduct.model_3d.length / 1024)} KB base64)</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="col-span-full flex justify-end">
-                           <button type="submit" className="bg-ink text-white px-8 py-3 rounded-full font-bold text-sm shadow-lg hover:bg-accent transition-colors">Guardar Producto</button>
-                         </div>
-                      </form>
-                    </div>
-                  )}
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="bg-slate-50 text-xs uppercase tracking-widest font-bold border-b border-ink/5">
-                          <th className="px-6 py-4 w-12">
-                            <input 
-                              type="checkbox" 
-                              checked={filteredProducts.length > 0 && selectedProductIds.length === filteredProducts.length}
-                              onChange={() => toggleSelectAll(filteredProducts)}
-                              className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
-                            />
-                          </th>
-                          <th className="px-6 py-4">Producto</th>
-                          <th className="px-6 py-4">Marca</th>
-                          <th className="px-6 py-4">Categoría</th>
-                          <th className="px-6 py-4 text-center">Stock</th>
-                          <th className="px-6 py-4">Precio</th>
-                          <th className="px-6 py-4 text-right">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-ink/5">
-                        {filteredProducts.length === 0 ? (
-                          <tr><td colSpan={7} className="text-center py-12 text-ink/50 font-bold">No se encontraron productos.</td></tr>
-                        ) : filteredProducts.map(p => {
-                          const isEditing = editingProductId === p.id;
-
-                          if (isEditing) {
-                            return (
-                              <tr key={p.id} className="bg-slate-50 text-sm">
-                                <td className="px-6 py-4 text-center">
-                                  <input 
-                                    type="checkbox" 
-                                    checked={selectedProductIds.includes(p.id)}
-                                    onChange={() => toggleProductSelection(p.id)}
-                                    className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
-                                  />
-                                </td>
-                                <td className="px-6 py-4 flex flex-col gap-3 min-w-[280px]">
-                                  <input className="w-full border border-ink/10 p-2 rounded-lg bg-white font-semibold" value={editProductData.name || ''} onChange={e => setEditProductData({...editProductData, name: e.target.value})} placeholder="Nombre" />
-                                  
-                                  <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
-                                    <span className="text-[10px] font-bold text-ink/40 uppercase">Imagen Catálogo</span>
-                                    <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.image || ''} onChange={e => setEditProductData({...editProductData, image: e.target.value})} placeholder="URL Imagen Catálogo" />
-                                    <input type="file" accept="image/*" onChange={handleEditFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                                  </div>
-
-                                  <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
-                                    <span className="text-[10px] font-bold text-ink/40 uppercase">Foto Modelo AR (PNG)</span>
-                                    <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.ar_image || ''} onChange={e => setEditProductData({...editProductData, ar_image: e.target.value})} placeholder="URL Foto Modelo (PNG Transparente)" />
-                                    <input type="file" accept="image/png,image/webp" onChange={handleEditArFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                                  </div>
-
-                                  <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
-                                    <span className="text-[10px] font-bold text-ink/40 uppercase">Modelo 3D (GLB)</span>
-                                    <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.model_3d || ''} onChange={e => setEditProductData({...editProductData, model_3d: e.target.value})} placeholder="URL Modelo 3D (GLB o Base64)" />
-                                    <input type="file" accept=".glb" onChange={handleEditModelFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <input className="w-full border border-ink/10 p-2 rounded-lg bg-white" value={editProductData.brand || ''} onChange={e => setEditProductData({...editProductData, brand: e.target.value})} placeholder="Marca" />
-                                </td>
-                                <td className="px-6 py-4">
-                                  <select className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm mb-2" value={editProductData.category || 'lente'} onChange={e => setEditProductData({...editProductData, category: e.target.value as 'lente'|'accesorio'})}>
-                                    <option value="lente">Lente</option>
-                                    <option value="accesorio">Accesorio</option>
-                                  </select>
-                                  <input className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm mb-2" type="number" min="0" max="100" value={editProductData.discount_percent || 0} onChange={e => setEditProductData({...editProductData, discount_percent: Number(e.target.value)})} placeholder="% Desc." />
-                                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-ink/70">
-                                    <input type="checkbox" checked={editProductData.is_featured || false} onChange={e => setEditProductData({...editProductData, is_featured: e.target.checked})} className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent" />
-                                    Destacar
-                                  </label>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <input className="w-full border border-ink/10 p-2 rounded-lg text-center w-20 bg-white" type="number" value={editProductData.stock ?? 0} onChange={e => setEditProductData({...editProductData, stock: Number(e.target.value)})} placeholder="Stock" />
-                                </td>
-                                <td className="px-6 py-4">
-                                  <input className="w-full border border-ink/10 p-2 rounded-lg w-24 bg-white" type="number" value={editProductData.price || 0} onChange={e => setEditProductData({...editProductData, price: Number(e.target.value)})} placeholder="Precio" />
-                                </td>
-                                <td className="px-6 py-4 text-right flex gap-2 justify-end">
-                                  <button onClick={() => handleSaveProduct(p.id)} className="p-2 text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm">
-                                    <Save className="w-5 h-5" />
-                                  </button>
-                                  <button onClick={() => setEditingProductId(null)} className="p-2 text-ink/50 hover:bg-ink/10 rounded-lg">
-                                    <X className="w-5 h-5" />
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          }
-
-                          return (
-                           <tr key={p.id} className="hover:bg-slate-50/50 transition-all">
-                             <td className="px-6 py-4 text-center">
-                               <input 
-                                 type="checkbox" 
-                                 checked={selectedProductIds.includes(p.id)}
-                                 onChange={() => toggleProductSelection(p.id)}
-                                 className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
-                               />
-                             </td>
-                             <td className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                               <div className="relative">
-                                 <img src={p.image} className="w-12 h-12 rounded-xl object-cover border border-ink/5" />
-                                 {p.is_featured && <span className="absolute -top-2 -right-2 bg-accent text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">⭐</span>}
-                               </div>
-                               <span className="font-bold text-ink">{p.name}</span>
-                             </td>
-                             <td className="px-6 py-4 text-ink/60 text-sm font-semibold">{p.brand}</td>
-                             <td className="px-6 py-4">
-                               <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.category === 'accesorio' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                                 {p.category === 'accesorio' ? 'Accesorio' : 'Lente'}
-                               </span>
-                             </td>
-                             <td className="px-6 py-4 text-center">
-                               <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.stock && p.stock < 5 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
-                                 {p.stock ?? 0} u.
-                               </span>
-                             </td>
-                             <td className="px-6 py-4">
-                               <div className="flex flex-col">
-                                 {p.discount_percent && p.discount_percent > 0 ? (
-                                   <>
-                                     <span className="text-xs text-ink/40 line-through font-semibold">${p.price.toLocaleString('es-CL')}</span>
-                                     <span className="text-sm font-bold text-red-500">${(p.price * (1 - p.discount_percent / 100)).toLocaleString('es-CL')} <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded ml-1">-{p.discount_percent}%</span></span>
-                                   </>
-                                 ) : (
-                                   <span className="text-sm font-bold">${p.price.toLocaleString('es-CL')}</span>
-                                 )}
-                               </div>
-                             </td>
-                             <td className="px-6 py-4 text-right flex gap-3 justify-end items-center h-full pt-7">
-                               <button onClick={() => { setEditingProductId(p.id); setEditProductData(p); }} className="text-blue-500 hover:bg-blue-50 rounded-lg p-2" title="Editar">
-                                  <Edit2 className="w-4.5 h-4.5" />
-                               </button>
-                               <button onClick={() => handleDeleteProduct(p.id)} className="text-red-500 hover:bg-red-50 rounded-lg p-2" title="Eliminar">
-                                  <Trash2 className="w-4.5 h-4.5" />
-                               </button>
-                             </td>
-                           </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="p-6 border-b border-ink/5 flex justify-between items-center bg-white">
+                  <h3 className="text-lg font-bold text-ink">Catálogo de Artículos</h3>
+                  <button
+                    onClick={() => setIsAddingProduct(!isAddingProduct)}
+                    className="bg-ink text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-md hover:bg-accent transition-colors flex items-center gap-1.5"
+                  >
+                    {isAddingProduct ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    <span>{isAddingProduct ? 'Cancelar' : 'Agregar Producto'}</span>
+                  </button>
                 </div>
+
+                {isAddingProduct && (
+                  <div className="p-6 bg-paper/30 border-b border-ink/10">
+                    <form onSubmit={handleCreateProduct} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Nombre</label>
+                        <input required value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" placeholder="Ej: Lentes Aviador" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Marca</label>
+                        <input required value={newProduct.brand} onChange={e => setNewProduct({ ...newProduct, brand: e.target.value })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" placeholder="Ej: Ray-Ban" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Precio ($)</label>
+                        <input required type="number" value={newProduct.price} onChange={e => setNewProduct({ ...newProduct, price: Number(e.target.value) })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Stock</label>
+                        <input required type="number" value={newProduct.stock} onChange={e => setNewProduct({ ...newProduct, stock: Number(e.target.value) })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Categoría</label>
+                        <select required value={newProduct.category} onChange={e => setNewProduct({ ...newProduct, category: e.target.value as 'lente' | 'accesorio' })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white">
+                          <option value="lente">Lente</option>
+                          <option value="accesorio">Accesorio</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">% Descuento</label>
+                        <input type="number" min="0" max="100" value={newProduct.discount_percent || 0} onChange={e => setNewProduct({ ...newProduct, discount_percent: Number(e.target.value) })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
+                      </div>
+                      <div className="flex items-center h-full md:pt-6">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-ink">
+                          <input type="checkbox" checked={newProduct.is_featured || false} onChange={e => setNewProduct({ ...newProduct, is_featured: e.target.checked })} className="w-5 h-5 rounded border-ink/20 text-accent focus:ring-accent" />
+                          Producto Destacado
+                        </label>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Imagen del Producto (Catálogo)</label>
+                        <input required type="file" accept="image/*" onChange={handleFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
+                        {newProduct.image && (
+                          <div className="mt-3">
+                            <img src={newProduct.image} alt="Vista previa" className="h-16 rounded-lg object-cover border border-ink/10 shadow-sm" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Foto Modelo Probador Virtual (PNG Transparente)</label>
+                        <input type="file" accept="image/png,image/webp" onChange={handleArFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
+                        {newProduct.ar_image && (
+                          <div className="mt-3">
+                            <img src={newProduct.ar_image} alt="Vista previa probador" className="h-16 rounded-lg object-contain border border-ink/10 shadow-sm bg-slate-100 p-1" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Modelo 3D Anteojos (Archivo .GLB)</label>
+                        <input type="file" accept=".glb" onChange={handleModelFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
+                        {newProduct.model_3d && (
+                          <div className="mt-3 text-xs text-green-600 font-bold flex items-center gap-1.5">
+                            <span>✓ Modelo 3D cargado correctamente ({Math.round(newProduct.model_3d.length / 1024)} KB base64)</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="col-span-full flex justify-end">
+                        <button type="submit" className="bg-ink text-white px-8 py-3 rounded-full font-bold text-sm shadow-lg hover:bg-accent transition-colors">Guardar Producto</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-slate-50 text-xs uppercase tracking-widest font-bold border-b border-ink/5">
+                        <th className="px-6 py-4 w-12">
+                          <input
+                            type="checkbox"
+                            checked={filteredProducts.length > 0 && selectedProductIds.length === filteredProducts.length}
+                            onChange={() => toggleSelectAll(filteredProducts)}
+                            className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
+                          />
+                        </th>
+                        <th className="px-6 py-4">Producto</th>
+                        <th className="px-6 py-4">Marca</th>
+                        <th className="px-6 py-4">Categoría</th>
+                        <th className="px-6 py-4 text-center">Stock</th>
+                        <th className="px-6 py-4">Precio</th>
+                        <th className="px-6 py-4 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink/5">
+                      {filteredProducts.length === 0 ? (
+                        <tr><td colSpan={7} className="text-center py-12 text-ink/50 font-bold">No se encontraron productos.</td></tr>
+                      ) : filteredProducts.map(p => {
+                        const isEditing = editingProductId === p.id;
+
+                        if (isEditing) {
+                          return (
+                            <tr key={p.id} className="bg-slate-50 text-sm">
+                              <td className="px-6 py-4 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedProductIds.includes(p.id)}
+                                  onChange={() => toggleProductSelection(p.id)}
+                                  className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
+                                />
+                              </td>
+                              <td className="px-6 py-4 flex flex-col gap-3 min-w-[280px]">
+                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white font-semibold" value={editProductData.name || ''} onChange={e => setEditProductData({ ...editProductData, name: e.target.value })} placeholder="Nombre" />
+
+                                <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
+                                  <span className="text-[10px] font-bold text-ink/40 uppercase">Imagen Catálogo</span>
+                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.image || ''} onChange={e => setEditProductData({ ...editProductData, image: e.target.value })} placeholder="URL Imagen Catálogo" />
+                                  <input type="file" accept="image/*" onChange={handleEditFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
+                                </div>
+
+                                <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
+                                  <span className="text-[10px] font-bold text-ink/40 uppercase">Foto Modelo AR (PNG)</span>
+                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.ar_image || ''} onChange={e => setEditProductData({ ...editProductData, ar_image: e.target.value })} placeholder="URL Foto Modelo (PNG Transparente)" />
+                                  <input type="file" accept="image/png,image/webp" onChange={handleEditArFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
+                                </div>
+
+                                <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
+                                  <span className="text-[10px] font-bold text-ink/40 uppercase">Modelo 3D (GLB)</span>
+                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.model_3d || ''} onChange={e => setEditProductData({ ...editProductData, model_3d: e.target.value })} placeholder="URL Modelo 3D (GLB o Base64)" />
+                                  <input type="file" accept=".glb" onChange={handleEditModelFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white" value={editProductData.brand || ''} onChange={e => setEditProductData({ ...editProductData, brand: e.target.value })} placeholder="Marca" />
+                              </td>
+                              <td className="px-6 py-4">
+                                <select className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm mb-2" value={editProductData.category || 'lente'} onChange={e => setEditProductData({ ...editProductData, category: e.target.value as 'lente' | 'accesorio' })}>
+                                  <option value="lente">Lente</option>
+                                  <option value="accesorio">Accesorio</option>
+                                </select>
+                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm mb-2" type="number" min="0" max="100" value={editProductData.discount_percent || 0} onChange={e => setEditProductData({ ...editProductData, discount_percent: Number(e.target.value) })} placeholder="% Desc." />
+                                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-ink/70">
+                                  <input type="checkbox" checked={editProductData.is_featured || false} onChange={e => setEditProductData({ ...editProductData, is_featured: e.target.checked })} className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent" />
+                                  Destacar
+                                </label>
+                              </td>
+                              <td className="px-6 py-4">
+                                <input className="w-full border border-ink/10 p-2 rounded-lg text-center w-20 bg-white" type="number" value={editProductData.stock ?? 0} onChange={e => setEditProductData({ ...editProductData, stock: Number(e.target.value) })} placeholder="Stock" />
+                              </td>
+                              <td className="px-6 py-4">
+                                <input className="w-full border border-ink/10 p-2 rounded-lg w-24 bg-white" type="number" value={editProductData.price || 0} onChange={e => setEditProductData({ ...editProductData, price: Number(e.target.value) })} placeholder="Precio" />
+                              </td>
+                              <td className="px-6 py-4 text-right flex gap-2 justify-end">
+                                <button onClick={() => handleSaveProduct(p.id)} className="p-2 text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm">
+                                  <Save className="w-5 h-5" />
+                                </button>
+                                <button onClick={() => setEditingProductId(null)} className="p-2 text-ink/50 hover:bg-ink/10 rounded-lg">
+                                  <X className="w-5 h-5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return (
+                          <tr key={p.id} className="hover:bg-slate-50/50 transition-all">
+                            <td className="px-6 py-4 text-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedProductIds.includes(p.id)}
+                                onChange={() => toggleProductSelection(p.id)}
+                                className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
+                              />
+                            </td>
+                            <td className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                              <div className="relative">
+                                <img src={p.image} className="w-12 h-12 rounded-xl object-cover border border-ink/5" />
+                                {p.is_featured && <span className="absolute -top-2 -right-2 bg-accent text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">⭐</span>}
+                              </div>
+                              <span className="font-bold text-ink">{p.name}</span>
+                            </td>
+                            <td className="px-6 py-4 text-ink/60 text-sm font-semibold">{p.brand}</td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.category === 'accesorio' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {p.category === 'accesorio' ? 'Accesorio' : 'Lente'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.stock && p.stock < 5 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
+                                {p.stock ?? 0} u.
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                {p.discount_percent && p.discount_percent > 0 ? (
+                                  <>
+                                    <span className="text-xs text-ink/40 line-through font-semibold">${p.price.toLocaleString('es-CL')}</span>
+                                    <span className="text-sm font-bold text-red-500">${(p.price * (1 - p.discount_percent / 100)).toLocaleString('es-CL')} <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded ml-1">-{p.discount_percent}%</span></span>
+                                  </>
+                                ) : (
+                                  <span className="text-sm font-bold">${p.price.toLocaleString('es-CL')}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right flex gap-3 justify-end items-center h-full pt-7">
+                              <button onClick={() => { setEditingProductId(p.id); setEditProductData(p); }} className="text-blue-500 hover:bg-blue-50 rounded-lg p-2" title="Editar">
+                                <Edit2 className="w-4.5 h-4.5" />
+                              </button>
+                              <button onClick={() => handleDeleteProduct(p.id)} className="text-red-500 hover:bg-red-50 rounded-lg p-2" title="Eliminar">
+                                <Trash2 className="w-4.5 h-4.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </>
           ) : view === 'appointments' ? (
             <>
@@ -838,7 +827,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                           {colAppts.length}
                         </span>
                       </div>
-                      
+
                       {colAppts.length === 0 && (
                         <div className="text-center py-10 text-ink/40 font-semibold text-sm border-2 border-dashed border-ink/10 rounded-2xl">
                           No hay citas
@@ -850,23 +839,23 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                         if (isEditing) {
                           return (
                             <div key={a.id} className="bg-white rounded-2xl p-5 shadow-lg border border-ink/10 flex flex-col gap-3 relative z-10">
-                               <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-sm font-bold focus:outline-none focus:border-ink/30" value={editApptData.name || ''} onChange={e => setEditApptData({...editApptData, name: e.target.value})} placeholder="Nombre" />
-                               <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" value={editApptData.email || ''} onChange={e => setEditApptData({...editApptData, email: e.target.value})} placeholder="Correo" />
-                               <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" value={editApptData.phone || ''} onChange={e => setEditApptData({...editApptData, phone: e.target.value})} placeholder="Teléfono" />
-                               <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" value={editApptData.service || ''} onChange={e => setEditApptData({...editApptData, service: e.target.value})} placeholder="Servicio" />
-                               <div className="flex gap-2">
-                                 <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" type="date" value={editApptData.date || ''} onChange={e => setEditApptData({...editApptData, date: e.target.value})} />
-                                 <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" type="time" value={editApptData.time || ''} onChange={e => setEditApptData({...editApptData, time: e.target.value})} />
-                               </div>
-                               <select className="border border-ink/10 p-2.5 rounded-xl bg-slate-50 w-full text-xs font-bold focus:outline-none focus:border-ink/30" value={editApptData.status || ''} onChange={e => setEditApptData({...editApptData, status: e.target.value as any})}>
-                                 <option value="pending">PENDIENTE</option>
-                                 <option value="confirmed">CONFIRMADO</option>
-                                 <option value="cancelled">CANCELADO</option>
-                               </select>
-                               <div className="flex justify-end gap-2 mt-2 pt-3 border-t border-ink/5">
-                                 <button onClick={() => setEditingAppointmentId(null)} className="px-3 py-2 text-xs font-bold text-ink/50 hover:bg-ink/10 rounded-xl transition-colors">Cancelar</button>
-                                 <button onClick={() => handleSaveAppointment(a.id)} className="px-4 py-2 text-xs font-bold text-white bg-ink rounded-xl hover:bg-accent transition-colors flex items-center gap-1.5 shadow-sm"><Save className="w-4 h-4" /> Guardar</button>
-                               </div>
+                              <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-sm font-bold focus:outline-none focus:border-ink/30" value={editApptData.name || ''} onChange={e => setEditApptData({ ...editApptData, name: e.target.value })} placeholder="Nombre" />
+                              <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" value={editApptData.email || ''} onChange={e => setEditApptData({ ...editApptData, email: e.target.value })} placeholder="Correo" />
+                              <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" value={editApptData.phone || ''} onChange={e => setEditApptData({ ...editApptData, phone: e.target.value })} placeholder="Teléfono" />
+                              <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" value={editApptData.service || ''} onChange={e => setEditApptData({ ...editApptData, service: e.target.value })} placeholder="Servicio" />
+                              <div className="flex gap-2">
+                                <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" type="date" value={editApptData.date || ''} onChange={e => setEditApptData({ ...editApptData, date: e.target.value })} />
+                                <input className="w-full border border-ink/10 p-2.5 rounded-xl bg-slate-50 text-xs focus:outline-none focus:border-ink/30" type="time" value={editApptData.time || ''} onChange={e => setEditApptData({ ...editApptData, time: e.target.value })} />
+                              </div>
+                              <select className="border border-ink/10 p-2.5 rounded-xl bg-slate-50 w-full text-xs font-bold focus:outline-none focus:border-ink/30" value={editApptData.status || ''} onChange={e => setEditApptData({ ...editApptData, status: e.target.value as any })}>
+                                <option value="pending">PENDIENTE</option>
+                                <option value="confirmed">CONFIRMADO</option>
+                                <option value="cancelled">CANCELADO</option>
+                              </select>
+                              <div className="flex justify-end gap-2 mt-2 pt-3 border-t border-ink/5">
+                                <button onClick={() => setEditingAppointmentId(null)} className="px-3 py-2 text-xs font-bold text-ink/50 hover:bg-ink/10 rounded-xl transition-colors">Cancelar</button>
+                                <button onClick={() => handleSaveAppointment(a.id)} className="px-4 py-2 text-xs font-bold text-white bg-ink rounded-xl hover:bg-accent transition-colors flex items-center gap-1.5 shadow-sm"><Save className="w-4 h-4" /> Guardar</button>
+                              </div>
                             </div>
                           );
                         }
@@ -881,7 +870,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                                 {col.id !== 'cancelled' && <button onClick={() => handleUpdateStatus(a.id, 'cancelled')} className="p-1.5 text-red-400 hover:bg-red-50 rounded-md" title="Cancelar cita"><X className="w-3.5 h-3.5" /></button>}
                               </div>
                             </div>
-                            
+
                             <h4 className="font-bold text-ink text-sm mb-1">{a.name}</h4>
                             <div className="text-xs text-ink/60 space-y-1 mb-5 font-medium">
                               <p>{a.email}</p>
@@ -913,21 +902,21 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
               {/* Beautiful AI Report Downloader Card */}
               <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-ink/5 p-12 text-center max-w-2xl mx-auto mt-10">
-                 <div className="w-16 h-16 bg-ink/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                   <BarChart3 className="w-8 h-8 text-ink" />
-                 </div>
-                 <h3 className="text-2xl font-serif text-ink mb-4 font-bold">Reportes de Ventas del Mes</h3>
-                 <p className="text-ink/60 mb-10 text-sm max-w-md mx-auto leading-relaxed">
-                   Descarga el resumen oficial de ventas, ingresos reales por señas cobradas, desglose de lentes con cristales dinámicos y métricas operativas del mes en curso.
-                 </p>
-                 
-                 <button 
-                   onClick={() => api.downloadMonthlyReport()} 
-                   className="bg-ink text-white px-10 py-4 rounded-full font-bold shadow-lg hover:bg-accent hover:scale-105 transition-all text-sm flex items-center justify-center gap-3 mx-auto"
-                 >
-                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                   <span>Descargar PDF de Ventas del Mes</span>
-                 </button>
+                <div className="w-16 h-16 bg-ink/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <BarChart3 className="w-8 h-8 text-ink" />
+                </div>
+                <h3 className="text-2xl font-serif text-ink mb-4 font-bold">Reportes de Ventas del Mes</h3>
+                <p className="text-ink/60 mb-10 text-sm max-w-md mx-auto leading-relaxed">
+                  Descarga el resumen oficial de ventas, ingresos reales por señas cobradas, desglose de lentes con cristales dinámicos y métricas operativas del mes en curso.
+                </p>
+
+                <button
+                  onClick={() => api.downloadMonthlyReport()}
+                  className="bg-ink text-white px-10 py-4 rounded-full font-bold shadow-lg hover:bg-accent hover:scale-105 transition-all text-sm flex items-center justify-center gap-3 mx-auto"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  <span>Descargar PDF de Ventas del Mes</span>
+                </button>
               </div>
             </>
           )}
