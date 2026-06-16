@@ -3,9 +3,16 @@ import { Product, Appointment, User, LensOption, WorkOrder, CartItem } from '../
 
 export const api = {
   getProducts: async (): Promise<Product[]> => {
-    const { data, error } = await supabase.from('products').select('*');
+    // Exclude model_3d because base64 strings crash mobile devices when fetching all products at once
+    const { data, error } = await supabase.from('products').select('id, name, price, stock, category, image, ar_image, is_ar_enabled, created_at, is_sun_glasses, is_computer_glasses, frame_material, shape, is_sports_glasses, color, brand, description, discount_percent, is_featured');
     if (error) throw new Error(error.message);
     return data || [];
+  },
+
+  getProduct3DModel: async (productId: number): Promise<string | null> => {
+    const { data, error } = await supabase.from('products').select('model_3d').eq('id', productId).single();
+    if (error) throw new Error(error.message);
+    return data?.model_3d || null;
   },
 
   loginUser: async (email: string, password: string): Promise<{ token: string, user: User }> => {
