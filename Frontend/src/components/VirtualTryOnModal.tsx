@@ -152,15 +152,18 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     const scene = new THREE.Scene();
     threeSceneRef.current = scene;
 
-    // Create Orthographic Camera (pixels mapping, Y goes UP)
-    const camera = new THREE.OrthographicCamera(0, width, height, 0, -1000, 1000);
+    // Create Orthographic Camera centered at 0,0
+    const camera = new THREE.OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2, 0.1, 2000);
+    camera.position.set(0, 0, 1000);
+    camera.lookAt(0, 0, 0);
     threeCameraRef.current = camera;
 
     // Create WebGLRenderer
     const renderer = new THREE.WebGLRenderer({
       canvas: canvas,
       alpha: true,
-      antialias: true
+      antialias: true,
+      logarithmicDepthBuffer: true
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -244,12 +247,13 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       if (!threeCanvasRef.current || !threeRendererRef.current || !threeCameraRef.current) return;
       const w = threeCanvasRef.current.clientWidth;
       const h = threeCanvasRef.current.clientHeight;
-      threeRendererRef.current.setSize(w, h);
+      if (w === 0 || h === 0) return;
+      threeRendererRef.current.setSize(w, h, false);
       
-      threeCameraRef.current.left = 0;
-      threeCameraRef.current.right = w;
-      threeCameraRef.current.top = h;
-      threeCameraRef.current.bottom = 0;
+      threeCameraRef.current.left = -w / 2;
+      threeCameraRef.current.right = w / 2;
+      threeCameraRef.current.top = h / 2;
+      threeCameraRef.current.bottom = -h / 2;
       threeCameraRef.current.updateProjectionMatrix();
     };
 
@@ -409,12 +413,36 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                 setFaceDetected(true);
                 if (!useVectorModel && glassesModelRef.current && threeCanvasRef.current) {
                   // --- 3D GLB Face Overlay Tracking ---
-                  const width = threeCanvasRef.current.clientWidth;
-                  const height = threeCanvasRef.current.clientHeight;
+                  const canvasW = threeCanvasRef.current.clientWidth;
+                  const canvasH = threeCanvasRef.current.clientHeight;
 
-                  // Center coordinates + manual offset
-                  const midX = ((leftEye.x + rightEye.x) / 2) * width;
-                  const midY = height - (((leftEye.y + rightEye.y) / 2) * height);
+                  // Dynamically ensure camera matches canvas size to prevent squishing
+                  if (threeCameraRef.current.right !== canvasW / 2 || threeCameraRef.current.top !== canvasH / 2) {
+                    threeRendererRef.current.setSize(canvasW, canvasH, false);
+                    threeCameraRef.current.left = -canvasW / 2;
+                    threeCameraRef.current.right = canvasW / 2;
+                    threeCameraRef.current.top = canvasH / 2;
+                    threeCameraRef.current.bottom = -canvasH / 2;
+                    threeCameraRef.current.updateProjectionMatrix();
+                  }
+
+                  // Calculate exact mapping for object-cover video
+                  const videoElement = videoRef.current;
+                  let dispW = canvasW;
+                  let dispH = canvasH;
+                  if (videoElement && videoElement.videoWidth) {
+                    const vW = videoElement.videoWidth;
+                    const vH = videoElement.videoHeight;
+                    const scale = Math.max(canvasW / vW, canvasH / vH);
+                    dispW = vW * scale;
+                    dispH = vH * scale;
+                  }
+
+                  // Center coordinates using display dimensions
+                  const normalizedX = (leftEye.x + rightEye.x) / 2;
+                  const normalizedY = (leftEye.y + rightEye.y) / 2;
+                  const midX = (normalizedX - 0.5) * dispW;
+                  const midY = (0.5 - normalizedY) * dispH;
                   
                   glassesModelRef.current.position.set(
                     midX + offsetXRef.current, 
@@ -453,8 +481,8 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                     glassesModelRef.current.rotation.x = pitch - 0.15;
                   }
 
-                  // Scale based on eye distance * manual scale adjustment
-                  const scaleVal = eyeDistance * width * 1.7 * (scaleAdjustment / 1.95) * extraScaleRef.current;
+                  // Scale based on eye distance * display width * manual scale adjustment
+                  const scaleVal = eyeDistance * dispW * 1.7 * (scaleAdjustment / 1.95) * extraScaleRef.current;
                   glassesModelRef.current.scale.set(scaleVal, scaleVal, scaleVal);
 
                   // Render ThreeJS Scene
