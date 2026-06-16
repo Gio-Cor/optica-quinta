@@ -18,26 +18,7 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
   const [purchaseType, setPurchaseType] = useState<'buy_only' | 'reserve_appointment'>('reserve_appointment');
   const [lensOptions, setLensOptions] = useState<LensOption[]>([]);
   const [selectedLensOptionId, setSelectedLensOptionId] = useState<number | null>(null);
-  const [model3d, setModel3d] = useState<string | null>(product.model_3d || null);
-  const [show3D, setShow3D] = useState(false);
-  const [loadingModel, setLoadingModel] = useState(false);
-
-  React.useEffect(() => {
-    if (!product.model_3d) {
-      setLoadingModel(true);
-      api.getProduct3DModel(product.id)
-        .then(base64 => {
-          if (base64) {
-            setModel3d(base64);
-            setShow3D(true);
-          }
-        })
-        .catch(console.error)
-        .finally(() => setLoadingModel(false));
-    } else {
-      setShow3D(true);
-    }
-  }, [product.id, product.model_3d]);
+  const [show3D, setShow3D] = useState(!!product.model_3d);
 
   React.useEffect(() => {
     api.getLensOptions().then(options => {
@@ -50,14 +31,14 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
   }, []);
 
   React.useEffect(() => {
-    if (model3d && !document.getElementById('model-viewer-script')) {
+    if (product.model_3d && !document.getElementById('model-viewer-script')) {
       const script = document.createElement('script');
       script.id = 'model-viewer-script';
       script.type = 'module';
       script.src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js';
       document.head.appendChild(script);
     }
-  }, [model3d]);
+  }, [product.model_3d]);
 
   const selectedOption = lensOptions.find(o => o.id === selectedLensOptionId);
   const basePrice = product.price;
@@ -83,7 +64,7 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
         <div className="grid lg:grid-cols-2 gap-12 px-6">
           {/* Image Section */}
           <div className="flex flex-col items-center justify-center relative bg-white min-h-[400px]">
-            {model3d && (
+            {product.model_3d && (
               <div className="absolute top-12 left-1/2 -translate-x-1/2 flex bg-ink/5 p-1 rounded-xl z-20 border border-ink/5 backdrop-blur-sm">
                 <button
                   onClick={() => setShow3D(false)}
@@ -101,16 +82,10 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
             )}
 
             <button 
-              onClick={() => { 
-                onClose(); 
-                // Inject the dynamically loaded model_3d into the product object for the AR modal
-                const productWithModel = { ...product, model_3d: model3d || undefined };
-                onTryOn(productWithModel); 
-              }}
-              className={`absolute top-0 right-0 md:left-1/2 md:-translate-x-1/2 bg-ink/70 text-white backdrop-blur-md px-6 py-3 rounded-full flex items-center gap-2 transition-colors text-sm font-semibold shadow-xl z-10 ${loadingModel ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent'}`}
-              disabled={loadingModel}
+              onClick={() => { onClose(); onTryOn(product); }}
+              className="absolute top-0 right-0 md:left-1/2 md:-translate-x-1/2 bg-ink/70 text-white backdrop-blur-md px-6 py-3 rounded-full flex items-center gap-2 hover:bg-accent transition-colors text-sm font-semibold shadow-xl z-10"
             >
-              <Camera className="w-4 h-4" /> {loadingModel ? 'Cargando AR...' : 'Probar Anteojos'}
+              <Camera className="w-4 h-4" /> Probar Anteojos
             </button>
             
             <motion.div
@@ -119,10 +94,10 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
               transition={{ delay: 0.2 }}
               className="w-full max-w-xl aspect-[4/3] flex items-center justify-center relative mix-blend-multiply px-4"
             >
-              {show3D && model3d ? (
+              {show3D && product.model_3d ? (
                 // @ts-ignore
                 <model-viewer
-                  src={model3d}
+                  src={product.model_3d}
                   alt={product.name}
                   auto-rotate
                   camera-controls

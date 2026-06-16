@@ -196,49 +196,68 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
       loader.setDRACOLoader(dracoLoader);
     }
+    // Handle GLB model loading - supports both HTTP URLs and base64 data URLs
+    const modelUrl = product.model_3d!;
+    
+    const onModelLoaded = (gltf: any) => {
+      if (!canvas.isConnected) return;
+      const model = gltf.scene;
 
-    loader.load(
-      product.model_3d,
-      (gltf: any) => {
-        if (!canvas.isConnected) return;
-        const model = gltf.scene;
+      // Auto center the geometry
+      const box = new THREE.Box3().setFromObject(model);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      model.position.sub(center);
 
-        // Auto center the geometry
-        const box = new THREE.Box3().setFromObject(model);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        model.position.sub(center);
+      // Normalize model size to exactly 1 unit width
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const modelWidth = size.x || 1;
+      model.scale.setScalar(1 / modelWidth);
 
-        // Normalize model size to exactly 1 unit width
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const modelWidth = size.x || 1;
-        model.scale.setScalar(1 / modelWidth);
+      console.log("✅ Model loaded successfully. Original width:", modelWidth, "Scaled to 1.0");
 
-        console.log("Model loaded successfully. Original width:", modelWidth, "Scaled to 1.0");
+      // Apply initial rotation offsets from refs
+      model.rotation.x = (rotationXRef.current * Math.PI) / 180;
+      model.rotation.y = (rotationYRef.current * Math.PI) / 180;
+      model.rotation.z = (rotationZRef.current * Math.PI) / 180;
 
-        // Apply initial rotation offsets from refs
-        model.rotation.x = (rotationXRef.current * Math.PI) / 180;
-        model.rotation.y = (rotationYRef.current * Math.PI) / 180;
-        model.rotation.z = (rotationZRef.current * Math.PI) / 180;
+      // Wrap model in parent group for precise manipulation
+      const group = new THREE.Group();
+      group.add(model);
 
-        // Wrap model in parent group for precise manipulation
-        const group = new THREE.Group();
-        group.add(model);
+      scene.add(group);
+      glassesModelRef.current = group;
+      setThreeLoaded(true);
 
-        scene.add(group);
-        glassesModelRef.current = group;
-        setThreeLoaded(true);
+      // Render once to test
+      renderer.render(scene, camera);
+    };
 
-        // Render once to test
-        renderer.render(scene, camera);
-      },
-      undefined,
-      (err: any) => {
-        console.error("Error loading GLB model in VirtualTryOnModal:", err);
-        setError(`Error cargando 3D: ${err.message || 'El modelo está corrupto o no se puede cargar.'}`);
+    const onModelError = (err: any) => {
+      console.error("❌ Error loading GLB model:", err);
+      setError(`Error cargando modelo 3D: ${err?.message || 'Archivo corrupto o formato no soportado.'}`);
+    };
+
+    if (modelUrl.startsWith('data:')) {
+      // Model is stored as base64 data URL — must convert to ArrayBuffer and use parse()
+      try {
+        console.log("📦 Modelo 3D detectado como base64 data URL, convirtiendo a ArrayBuffer...");
+        const base64 = modelUrl.split(',')[1];
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        loader.parse(bytes.buffer, '', onModelLoaded, onModelError);
+      } catch (parseErr: any) {
+        console.error("❌ Error parsing base64 model:", parseErr);
+        setError(`Error procesando modelo 3D: ${parseErr?.message || parseErr}`);
       }
-    );
+    } else {
+      // Model is an HTTP URL — use standard load()
+      loader.load(modelUrl, onModelLoaded, undefined, onModelError);
+    }
   };
 
   const threeCanvasCallbackRef = useCallback((canvas: HTMLCanvasElement | null) => {
@@ -383,211 +402,67 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     }
   }, [stream]);
 
-  // Frame processing loop for Face Tracking
+  // Independent 3D render loop — runs as soon as GLB model is loaded, NO MediaPipe dependency
   useEffect(() => {
-    if (!faceLandmarker || !stream || !videoRef.current) return;
+    if (!threeLoaded || !glassesModelRef.current || !threeCanvasRef.current) return;
 
     let active = true;
-    let lastVideoTime = -1;
     let animationFrameId: number;
 
-    function predictLoop() {
+    function renderLoop() {
       if (!active) return;
-
       try {
-        let results: any = null;
-        let didEvaluate = false;
+        if (glassesModelRef.current && threeCanvasRef.current && threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
+          const canvasW = threeCanvasRef.current.clientWidth;
+          const canvasH = threeCanvasRef.current.clientHeight;
 
-        if (captureMode === 'live') {
-          const video = videoRef.current;
-          if (video && video.readyState >= 3) {
-            const currentTime = video.currentTime;
-            if (currentTime !== lastVideoTime) {
-              lastVideoTime = currentTime;
-              results = faceLandmarker.detectForVideo(video, performance.now());
-              didEvaluate = true;
-            }
+          // Keep camera in sync with canvas dimensions
+          if (threeCameraRef.current.right !== canvasW / 2 || threeCameraRef.current.top !== canvasH / 2) {
+            threeRendererRef.current.setSize(canvasW, canvasH, false);
+            threeCameraRef.current.left = -canvasW / 2;
+            threeCameraRef.current.right = canvasW / 2;
+            threeCameraRef.current.top = canvasH / 2;
+            threeCameraRef.current.bottom = -canvasH / 2;
+            threeCameraRef.current.updateProjectionMatrix();
           }
-        } else if (captureMode === 'photo' && staticImageRef.current) {
-          if (staticImageRef.current.complete && staticImageRef.current.naturalWidth > 0) {
-            if (!cachedResultsRef.current) {
-              // Only detect once per image to save CPU. Use detectForVideo because runningMode is VIDEO.
-              cachedResultsRef.current = faceLandmarker.detectForVideo(staticImageRef.current, performance.now());
-            }
-            results = cachedResultsRef.current;
-            didEvaluate = true;
+
+          // Position model in center
+          glassesModelRef.current.position.set(
+            offsetXRef.current, 
+            offsetYRef.current, 
+            0
+          );
+
+          // Apply manual rotation sliders to inner model
+          const innerModel = glassesModelRef.current.children[0];
+          if (innerModel) {
+            innerModel.rotation.x = (rotationXRef.current * Math.PI) / 180;
+            innerModel.rotation.y = (rotationYRef.current * Math.PI) / 180;
+            innerModel.rotation.z = (rotationZRef.current * Math.PI) / 180;
           }
+
+          // Apply scale
+          const scaleVal = canvasW * 0.4 * extraScaleRef.current;
+          glassesModelRef.current.scale.set(scaleVal, scaleVal, scaleVal);
+
+          // Render
+          threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
         }
-
-        if (didEvaluate) {
-          if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
-              const landmarks = results.faceLandmarks[0];
-              const leftEye = landmarks[33];
-              const rightEye = landmarks[263];
-              
-              if (leftEye && rightEye) {
-                const eyeDistance = Math.hypot(rightEye.x - leftEye.x, rightEye.y - leftEye.y);
-                setFaceDetected(true);
-                if (!useVectorModel && glassesModelRef.current && threeCanvasRef.current) {
-                  // --- 3D GLB Face Overlay Tracking ---
-                  const canvasW = threeCanvasRef.current.clientWidth;
-                  const canvasH = threeCanvasRef.current.clientHeight;
-
-                  // Dynamically ensure camera matches canvas size to prevent squishing
-                  if (threeCameraRef.current.right !== canvasW / 2 || threeCameraRef.current.top !== canvasH / 2) {
-                    threeRendererRef.current.setSize(canvasW, canvasH, false);
-                    threeCameraRef.current.left = -canvasW / 2;
-                    threeCameraRef.current.right = canvasW / 2;
-                    threeCameraRef.current.top = canvasH / 2;
-                    threeCameraRef.current.bottom = -canvasH / 2;
-                    threeCameraRef.current.updateProjectionMatrix();
-                  }
-
-                  // Calculate exact mapping for object-cover video
-                  const videoElement = videoRef.current;
-                  let dispW = canvasW;
-                  let dispH = canvasH;
-                  if (videoElement && videoElement.videoWidth) {
-                    const vW = videoElement.videoWidth;
-                    const vH = videoElement.videoHeight;
-                    const scale = Math.max(canvasW / vW, canvasH / vH);
-                    dispW = vW * scale;
-                    dispH = vH * scale;
-                  }
-
-                  // Center coordinates using display dimensions
-                  const normalizedX = (leftEye.x + rightEye.x) / 2;
-                  const normalizedY = (leftEye.y + rightEye.y) / 2;
-                  const midX = (normalizedX - 0.5) * dispW;
-                  const midY = (0.5 - normalizedY) * dispH;
-                  
-                  glassesModelRef.current.position.set(
-                    midX + offsetXRef.current, 
-                    midY + offsetYRef.current, 
-                    0
-                  );
-
-                  // Update inner model rotation using the sliders
-                  const innerModel = glassesModelRef.current.children[0];
-                  if (innerModel) {
-                    innerModel.rotation.x = (rotationXRef.current * Math.PI) / 180;
-                    innerModel.rotation.y = (rotationYRef.current * Math.PI) / 180;
-                    innerModel.rotation.z = (rotationZRef.current * Math.PI) / 180;
-                  }
-
-                  // Calculate tracking rotation angle (Roll)
-                  const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
-                  glassesModelRef.current.rotation.z = -roll;
-
-                  // Estimate tracking Yaw (rotation around Y axis)
-                  const noseTip = landmarks[1];
-                  if (noseTip) {
-                    const midEyeX = (leftEye.x + rightEye.x) / 2;
-                    const yaw = ((noseTip.x - midEyeX) / eyeDistance) * 0.8;
-                    glassesModelRef.current.rotation.y = yaw;
-                  }
-
-                  // Estimate tracking Pitch (rotation around X axis)
-                  const forehead = landmarks[10];
-                  const chin = landmarks[152];
-                  if (noseTip && forehead && chin) {
-                    const midEyeY = (leftEye.y + rightEye.y) / 2;
-                    const faceHeight = Math.abs(chin.y - forehead.y);
-                    const pitch = ((noseTip.y - midEyeY) / faceHeight) * 1.5;
-                    // Standard pitch offset so glasses sit straight
-                    glassesModelRef.current.rotation.x = pitch - 0.15;
-                  }
-
-                  // Scale based on eye distance * display width * manual scale adjustment
-                  const scaleVal = eyeDistance * dispW * 1.7 * (scaleAdjustment / 1.95) * extraScaleRef.current;
-                  glassesModelRef.current.scale.set(scaleVal, scaleVal, scaleVal);
-
-                  // Render ThreeJS Scene
-                  if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
-                    threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
-                  }
-
-                  // Hide 2D layout overlay
-                  setGlassesTransform({
-                    left: 50,
-                    top: 42,
-                    width: 0,
-                    rotate: 0,
-                    visible: false
-                  });
-                } else {
-                  // --- Fallback Idle State (No face detected) ---
-                  // Instead of hiding the 3D model, let's put it in the center and spin it 
-                  // to verify that ThreeJS is rendering the model successfully!
-                  if (glassesModelRef.current && threeCanvasRef.current) {
-                    const canvasW = threeCanvasRef.current.clientWidth;
-                    
-                    glassesModelRef.current.position.set(0, 0, 0); // Center of orthographic camera
-                    
-                    // Reset internal rotation and apply a continuous spin
-                    const innerModel = glassesModelRef.current.children[0];
-                    if (innerModel) {
-                      innerModel.rotation.set(0, 0, 0);
-                    }
-                    glassesModelRef.current.rotation.x = 0;
-                    glassesModelRef.current.rotation.z = 0;
-                    glassesModelRef.current.rotation.y += 0.02; // Spin on Y axis
-                    
-                    // Give it a decent size
-                    const fallbackScale = canvasW * 0.4;
-                    glassesModelRef.current.scale.set(fallbackScale, fallbackScale, fallbackScale);
-                    
-                    if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
-                      threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
-                    }
-                  }
-
-                  setGlassesTransform({
-                    left: 50,
-                    top: 42,
-                    width: eyeDistance * scaleAdjustment * 100,
-                    rotate: 0,
-                    visible: true
-                  });
-                }
-              } else {
-                // Hide both overlays
-                if (glassesModelRef.current) {
-                  glassesModelRef.current.position.set(-1000, -1000, 0);
-                  if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
-                    threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
-                  }
-                }
-                setGlassesTransform(prev => ({ ...prev, visible: false }));
-                setFaceDetected(false);
-              }
-            } else {
-              if (glassesModelRef.current) {
-                glassesModelRef.current.position.set(-1000, -1000, 0);
-                if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
-                  threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
-                }
-              }
-              setGlassesTransform(prev => ({ ...prev, visible: false }));
-              setFaceDetected(false);
-            }
-        } // Cierra if (didEvaluate)
-      } catch (e) {
-        console.error("Frame tracking error:", e);
+      } catch (err) {
+        console.error("3D render error:", err);
       }
-      
-      animationFrameId = requestAnimationFrame(predictLoop);
+      animationFrameId = requestAnimationFrame(renderLoop);
     }
 
-    predictLoop();
+    setFaceDetected(true); // Show as active
+    setGlassesTransform({ left: 50, top: 42, width: 0, rotate: 0, visible: false }); // Hide SVG overlay
+    renderLoop();
 
     return () => {
       active = false;
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [faceLandmarker, stream, scaleAdjustment, captureMode]);
+  }, [threeLoaded]);
 
   // Helper to render beautiful, 100% transparent vector glasses matching the product style
   const renderGlassesSVG = () => {
