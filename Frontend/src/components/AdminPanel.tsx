@@ -703,14 +703,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                                 </div>
 
                                 <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
-                                  <span className="text-[10px] font-bold text-ink/40 uppercase">Foto Modelo AR (PNG)</span>
-                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.ar_image || ''} onChange={e => setEditProductData({ ...editProductData, ar_image: e.target.value })} placeholder="URL Foto Modelo (PNG Transparente)" />
-                                  <input type="file" accept="image/png,image/webp" onChange={handleEditArFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                                </div>
-
-                                <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
                                   <span className="text-[10px] font-bold text-ink/40 uppercase">Modelo 3D (GLB)</span>
-                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.model_3d || ''} onChange={e => setEditProductData({ ...editProductData, model_3d: e.target.value })} placeholder="URL Modelo 3D (GLB o Base64)" />
+                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.model_3d || ''} onChange={e => setEditProductData({ ...editProductData, model_3d: e.target.value })} placeholder="URL Modelo 3D (Archivo .GLB)" />
                                   <input type="file" accept=".glb" onChange={handleEditModelFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
                                 </div>
                               </td>
