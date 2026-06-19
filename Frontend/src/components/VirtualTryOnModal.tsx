@@ -194,14 +194,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     scene.add(faceTrackGroup);
     glassesModelRef.current = faceTrackGroup;
 
-    // Create debug red cube (3x3x3 cm in canonical space where 1 unit = 1 cm)
-    const cubeGeo = new THREE.BoxGeometry(3.0, 3.0, 3.0);
-    const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const debugCube = new THREE.Mesh(cubeGeo, cubeMat);
-    debugCube.name = "debugCube";
-    debugCube.position.set(0, 0, 0); // Nose bridge center
-    faceTrackGroup.add(debugCube);
-
     // Create adjustment group for sliders
     const adjustmentGroup = new THREE.Group();
     faceTrackGroup.add(adjustmentGroup);
@@ -255,7 +247,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
 
         const center = new THREE.Vector3();
         box.getCenter(center);
-        model.position.sub(center);
 
         // Normalize model size to exactly 1 unit width (1 cm)
         const size = new THREE.Vector3();
@@ -264,7 +255,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         if (!isFinite(modelWidth) || modelWidth <= 0) {
           modelWidth = 1.0;
         }
-        model.scale.setScalar(1 / modelWidth);
 
         console.log("✅ Model loaded successfully.", {
           originalWidth: size.x,
@@ -273,10 +263,28 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
           hasMesh: hasMesh
         });
 
-        // Add model to adjustmentGroup
-        adjustmentGroup.add(model);
+        // Create pivot group to center and scale correctly without translation mismatch
+        const pivotGroup = new THREE.Group();
+        pivotGroup.name = "pivotGroup";
+
+        // Center the model inside pivotGroup
+        model.position.copy(center).multiplyScalar(-1);
+        pivotGroup.add(model);
+
+
+
+        // Align glasses upright by counteracting Sketchfab's Z-up to Y-up rotation
+        model.rotation.x = Math.PI / 2;
+
+        // Scale pivotGroup so the normalized width of the glasses is 1.0 unit (1 cm)
+        pivotGroup.scale.setScalar(1 / modelWidth);
+
+        // Add pivotGroup to adjustmentGroup
+        adjustmentGroup.add(pivotGroup);
         setModelStatus('loaded');
-        
+
+
+
         // Render once to test
         renderer.render(scene, camera);
       } catch (err: any) {
@@ -382,6 +390,9 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         // Parallel load of camera feed and FaceLandmarker
         const cameraPromise = navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
+        }).catch(err => {
+          console.warn("⚠️ Camera access failed, falling back to static photo mode:", err);
+          return null;
         });
         
         const mediaPipePromise = loadMediaPipe();
@@ -389,18 +400,30 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         const [mediaStream, landmarker] = await Promise.all([cameraPromise, mediaPipePromise]);
 
         if (!active) {
-          mediaStream.getTracks().forEach(track => track.stop());
+          if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+          }
           landmarker.close();
           return;
         }
 
-        localStream = mediaStream;
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
+        faceLandmarkerRef.current = landmarker;
+
+        if (mediaStream) {
+          localStream = mediaStream;
+          setStream(mediaStream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+          }
+          setCaptureMode('live');
+        } else {
+          // Camera failed: fall back to static image mode with placeholder face
+          console.log("Using static fallback image for face tracking.");
+          setCaptureMode('photo');
+          setImageSrc('/man_glasses_hud.png');
+          cachedResultsRef.current = null; // reset cache
         }
 
-        faceLandmarkerRef.current = landmarker;
         setLoadingModel(false);
       } catch (err: any) {
         console.error("Initialization error:", err);
@@ -423,7 +446,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         faceLandmarkerRef.current = null;
       }
     };
-  }, []);
+  }, [product.model_3d]);
 
   // Play camera stream as soon as video element is mounted and stream is ready
   useEffect(() => {
