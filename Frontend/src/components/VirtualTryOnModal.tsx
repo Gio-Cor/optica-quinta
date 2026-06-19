@@ -199,17 +199,36 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     threeRendererRef.current = renderer;
 
-    // Add Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    // Add Lights for complete PBR support
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); // Intense ambient light
     scene.add(ambientLight);
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight1.position.set(0, 1, 1).normalize();
-    scene.add(dirLight1);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    directionalLight.position.set(0, 5, 10); // Project light from front and top
+    scene.add(directionalLight);
 
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-    dirLight2.position.set(0, -1, -1).normalize();
-    scene.add(dirLight2);
+    // Create tracking group hierarchy immediately so tracking starts working right away
+    const faceTrackGroup = new THREE.Group();
+    faceTrackGroup.matrixAutoUpdate = false;
+    faceTrackGroup.visible = false; // Hide initially until face is detected
+    scene.add(faceTrackGroup);
+    glassesModelRef.current = faceTrackGroup;
+
+    // Create debug red cube (5x5x5 cm in metric space -> 0.05x0.05x0.05 meters)
+    const cubeGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+    const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const debugCube = new THREE.Mesh(cubeGeo, cubeMat);
+    debugCube.name = "debugCube";
+    debugCube.position.set(0, 0, 0); // Nose bridge center
+    faceTrackGroup.add(debugCube);
+
+    // Create adjustment group for sliders
+    const adjustmentGroup = new THREE.Group();
+    faceTrackGroup.add(adjustmentGroup);
+    adjustmentGroupRef.current = adjustmentGroup;
+
+    // Set threeLoaded to true immediately so tracking and debug cube render while loading the GLB model
+    setThreeLoaded(true);
 
     // Load Model
     const loader = new THREE.GLTFLoader();
@@ -232,31 +251,17 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       box.getCenter(center);
       model.position.sub(center);
 
-      // Normalize model size to exactly 1 unit width (1 cm)
+      // Normalize model size to exactly 1 unit width (1 cm / 0.01 m when scaled)
       const size = new THREE.Vector3();
       box.getSize(size);
       const modelWidth = size.x || 1;
       model.scale.setScalar(1 / modelWidth);
 
-      console.log("✅ Model loaded successfully. Original width:", modelWidth, "Scaled to 1.0");
+      console.log("✅ Model loaded successfully. Original width:", modelWidth, "Scaled to 1.0 unit");
 
-      // Create dual group hierarchy:
-      // faceTrackGroup (receives MediaPipe matrix)
-      //   └─ adjustmentGroup (receives manual adjustments)
-      //        └─ model (the GLB model)
-      const adjustmentGroup = new THREE.Group();
+      // Add model to adjustmentGroup
       adjustmentGroup.add(model);
-      adjustmentGroupRef.current = adjustmentGroup;
-
-      const faceTrackGroup = new THREE.Group();
-      faceTrackGroup.matrixAutoUpdate = false;
-      faceTrackGroup.add(adjustmentGroup);
-      faceTrackGroup.visible = false; // Hide initially until face is detected
       
-      scene.add(faceTrackGroup);
-      glassesModelRef.current = faceTrackGroup;
-      setThreeLoaded(true);
-
       // Render once to test
       renderer.render(scene, camera);
     };
@@ -290,6 +295,19 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       if (threeRendererRef.current) {
         threeRendererRef.current.dispose();
         threeRendererRef.current = null;
+      }
+      if (threeSceneRef.current) {
+        const scene = threeSceneRef.current;
+        scene.traverse((object: any) => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach((mat: any) => mat.dispose());
+            } else {
+              object.material.dispose();
+            }
+          }
+        });
       }
       glassesModelRef.current = null;
       threeSceneRef.current = null;
@@ -498,15 +516,17 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
           setGlassesTransform(prev => ({ ...prev, visible: false }));
         }
 
-        // Apply manual slider adjustments to adjustmentGroup
+        // Apply manual slider adjustments to adjustmentGroup (using metricScale = 0.01 to map cm to meters)
         if (threeLoaded && adjustmentGroupRef.current) {
           const arOffsetX = product.ar_offset_x || 0.0;
           const arOffsetY = product.ar_offset_y || 0.0;
           const arOffsetZ = product.ar_offset_z || 0.0;
 
-          const tx = arOffsetX + offsetXRef.current * 0.05;
-          const ty = arOffsetY + offsetYRef.current * 0.05;
-          const tz = arOffsetZ;
+          const metricScale = 0.01; // Compacts model from cm scale to meter scale for perspective camera compatibility
+
+          const tx = (arOffsetX + offsetXRef.current * 0.05) * metricScale;
+          const ty = (arOffsetY + offsetYRef.current * 0.05) * metricScale;
+          const tz = arOffsetZ * metricScale;
 
           adjustmentGroupRef.current.position.set(tx, ty, tz);
 
@@ -516,8 +536,8 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
           adjustmentGroupRef.current.rotation.set(rx, ry, rz);
 
           const arScale = product.ar_scale || 1.0;
-          const baseScale = 7.5 * scaleAdjustment;
-          const s = baseScale * arScale * extraScaleRef.current;
+          const baseScale = 7.5 * scaleAdjustment; // default is 14.625 cm
+          const s = baseScale * arScale * extraScaleRef.current * metricScale;
           adjustmentGroupRef.current.scale.set(s, s, s);
         }
 
