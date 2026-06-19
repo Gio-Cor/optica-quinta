@@ -146,6 +146,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const threeRendererRef = useRef<any>(null);
   const glassesModelRef = useRef<any>(null);
   const [threeLoaded, setThreeLoaded] = useState(false);
+  const [modelStatus, setModelStatus] = useState<'none' | 'loading' | 'loaded' | 'error'>('none');
 
   const initThree = async (canvas: HTMLCanvasElement) => {
     if (!product.model_3d) return;
@@ -208,6 +209,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
 
     // Set threeLoaded to true immediately so tracking and debug cube render while loading the GLB model
     setThreeLoaded(true);
+    setModelStatus('loading');
 
     // Load Model using direct import GLTFLoader
     const loader = new GLTFLoader();
@@ -220,33 +222,74 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     const modelUrl = product.model_3d!;
     
     const onModelLoaded = (gltf: any) => {
-      if (!canvas.isConnected) return;
-      const model = gltf.scene;
+      try {
+        if (!canvas.isConnected) return;
+        const model = gltf.scene;
 
-      // Auto center the geometry
-      const box = new THREE.Box3().setFromObject(model);
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-      model.position.sub(center);
+        // Force update world matrices so child matrixWorld matches their geometry positions
+        model.updateMatrixWorld(true);
 
-      // Normalize model size to exactly 1 unit width (1 cm / 0.01 m when scaled)
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      const modelWidth = size.x || 1;
-      model.scale.setScalar(1 / modelWidth);
+        // Compute bounding box based only on actual meshes to avoid camera/helper bounds distortion
+        const box = new THREE.Box3();
+        let hasMesh = false;
+        model.traverse((child: any) => {
+          if (child.isMesh) {
+            if (!child.geometry.boundingBox) {
+              child.geometry.computeBoundingBox();
+            }
+            const meshBox = child.geometry.boundingBox.clone();
+            meshBox.applyMatrix4(child.matrixWorld);
+            if (!hasMesh) {
+              box.copy(meshBox);
+              hasMesh = true;
+            } else {
+              box.union(meshBox);
+            }
+          }
+        });
 
-      console.log("✅ Model loaded successfully. Original width:", modelWidth, "Scaled to 1.0 unit");
+        if (!hasMesh) {
+          // Fallback if no meshes found in hierarchy
+          box.setFromObject(model);
+        }
 
-      // Add model to adjustmentGroup
-      adjustmentGroup.add(model);
-      
-      // Render once to test
-      renderer.render(scene, camera);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        model.position.sub(center);
+
+        // Normalize model size to exactly 1 unit width (1 cm)
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        let modelWidth = size.x;
+        if (!isFinite(modelWidth) || modelWidth <= 0) {
+          modelWidth = 1.0;
+        }
+        model.scale.setScalar(1 / modelWidth);
+
+        console.log("✅ Model loaded successfully.", {
+          originalWidth: size.x,
+          normalizedWidth: modelWidth,
+          center: center,
+          hasMesh: hasMesh
+        });
+
+        // Add model to adjustmentGroup
+        adjustmentGroup.add(model);
+        setModelStatus('loaded');
+        
+        // Render once to test
+        renderer.render(scene, camera);
+      } catch (err: any) {
+        console.error("❌ Error in onModelLoaded:", err);
+        setError(`Error al procesar modelo 3D: ${err?.message || err}`);
+        setModelStatus('error');
+      }
     };
 
     const onModelError = (err: any) => {
       console.error("❌ Error loading GLB model:", err);
       setError(`Error cargando modelo 3D: ${err?.message || 'Archivo corrupto o formato no soportado.'}`);
+      setModelStatus('error');
     };
 
     if (modelUrl.startsWith('data:')) {
@@ -331,6 +374,9 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     async function initAR() {
       setLoadingModel(true);
       setError(null);
+      if (!product.model_3d) {
+        setModelStatus('none');
+      }
 
       try {
         // Parallel load of camera feed and FaceLandmarker
@@ -766,6 +812,21 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                 <Maximize2 className="w-4 h-4 opacity-40" />
                 <span>Detección facial activa</span>
               </div>
+              {product.model_3d && (
+                <div className="flex items-center gap-3 text-xs text-ink/80">
+                  <div className={`w-2 h-2 rounded-full ${
+                    modelStatus === 'loaded' ? 'bg-green-500' :
+                    modelStatus === 'error' ? 'bg-red-500 animate-pulse' :
+                    'bg-yellow-500 animate-pulse'
+                  }`} />
+                  <span>
+                    {modelStatus === 'loading' && 'Cargando modelo 3D...'}
+                    {modelStatus === 'loaded' && 'Modelo 3D cargado'}
+                    {modelStatus === 'error' && 'Error al cargar modelo 3D'}
+                    {modelStatus === 'none' && 'Iniciando modelo 3D...'}
+                  </span>
+                </div>
+              )}
 
               {/* Source Selector (Camera / Photo) */}
               {!loadingModel && !error && (
