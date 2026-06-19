@@ -4,26 +4,60 @@ import { AlertCircle, X, Maximize2, ShoppingBag, Loader2, Camera, Upload } from 
 import { Product } from '../types';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
+let threeLoadPromise: Promise<void> | null = null;
+
 // Dynamic script loader for ThreeJS & GLTFLoader
 const loadThreeJS = async () => {
-  if (!(window as any).THREE) {
-    const threeScript = document.createElement('script');
-    threeScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-    document.head.appendChild(threeScript);
-    await new Promise(resolve => threeScript.onload = resolve);
+  if ((window as any).THREE && (window as any).THREE.GLTFLoader && (window as any).THREE.DRACOLoader) {
+    return Promise.resolve();
   }
-  if (!(window as any).THREE.GLTFLoader) {
-    const loaderScript = document.createElement('script');
-    loaderScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
-    document.head.appendChild(loaderScript);
-    await new Promise(resolve => loaderScript.onload = resolve);
+
+  if (threeLoadPromise) {
+    return threeLoadPromise;
   }
-  if (!(window as any).THREE.DRACOLoader) {
-    const dracoScript = document.createElement('script');
-    dracoScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js';
-    document.head.appendChild(dracoScript);
-    await new Promise(resolve => dracoScript.onload = resolve);
-  }
+
+  threeLoadPromise = (async () => {
+    if (!(window as any).THREE) {
+      let script = document.querySelector('script[src*="three.min.js"]');
+      if (!script) {
+        script = document.createElement('script');
+        script.setAttribute('src', 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+        document.head.appendChild(script);
+      }
+      await new Promise(resolve => {
+        (script as any).onload = resolve;
+        (script as any).onerror = resolve;
+      });
+    }
+
+    if (!(window as any).THREE.GLTFLoader) {
+      let script = document.querySelector('script[src*="GLTFLoader.js"]');
+      if (!script) {
+        script = document.createElement('script');
+        script.setAttribute('src', 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js');
+        document.head.appendChild(script);
+      }
+      await new Promise(resolve => {
+        (script as any).onload = resolve;
+        (script as any).onerror = resolve;
+      });
+    }
+
+    if (!(window as any).THREE.DRACOLoader) {
+      let script = document.querySelector('script[src*="DRACOLoader.js"]');
+      if (!script) {
+        script = document.createElement('script');
+        script.setAttribute('src', 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js');
+        document.head.appendChild(script);
+      }
+      await new Promise(resolve => {
+        (script as any).onload = resolve;
+        (script as any).onerror = resolve;
+      });
+    }
+  })();
+
+  return threeLoadPromise;
 };
 
 const loadMediaPipe = async () => {
@@ -419,6 +453,13 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
 
     function loop() {
       if (!active) return;
+
+      if (captureMode === 'live') {
+        if (!videoRef.current || videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
+          animationFrameId = requestAnimationFrame(loop);
+          return;
+        }
+      }
 
       try {
         const landmarker = faceLandmarkerRef.current;
