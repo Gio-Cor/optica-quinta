@@ -272,9 +272,8 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         pivotGroup.add(model);
 
 
-
-        // Align glasses upright by counteracting Sketchfab's Z-up to Y-up rotation
-        model.rotation.x = Math.PI / 2;
+        // Rotate 90 degrees around Y to align the GLB's Z-axis width with the world X-axis
+        model.rotation.y = Math.PI / 2;
 
         // Scale pivotGroup so the normalized width of the glasses is 1.0 unit (1 cm)
         pivotGroup.scale.setScalar(1 / modelWidth);
