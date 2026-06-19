@@ -3,62 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AlertCircle, X, Maximize2, ShoppingBag, Loader2, Camera, Upload } from 'lucide-react';
 import { Product } from '../types';
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-
-let threeLoadPromise: Promise<void> | null = null;
-
-// Dynamic script loader for ThreeJS & GLTFLoader
-const loadThreeJS = async () => {
-  if ((window as any).THREE && (window as any).THREE.GLTFLoader && (window as any).THREE.DRACOLoader) {
-    return Promise.resolve();
-  }
-
-  if (threeLoadPromise) {
-    return threeLoadPromise;
-  }
-
-  threeLoadPromise = (async () => {
-    if (!(window as any).THREE) {
-      let script = document.querySelector('script[src*="three.min.js"]');
-      if (!script) {
-        script = document.createElement('script');
-        script.setAttribute('src', 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
-        document.head.appendChild(script);
-      }
-      await new Promise(resolve => {
-        (script as any).onload = resolve;
-        (script as any).onerror = resolve;
-      });
-    }
-
-    if (!(window as any).THREE.GLTFLoader) {
-      let script = document.querySelector('script[src*="GLTFLoader.js"]');
-      if (!script) {
-        script = document.createElement('script');
-        script.setAttribute('src', 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js');
-        document.head.appendChild(script);
-      }
-      await new Promise(resolve => {
-        (script as any).onload = resolve;
-        (script as any).onerror = resolve;
-      });
-    }
-
-    if (!(window as any).THREE.DRACOLoader) {
-      let script = document.querySelector('script[src*="DRACOLoader.js"]');
-      if (!script) {
-        script = document.createElement('script');
-        script.setAttribute('src', 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js');
-        document.head.appendChild(script);
-      }
-      await new Promise(resolve => {
-        (script as any).onload = resolve;
-        (script as any).onerror = resolve;
-      });
-    }
-  })();
-
-  return threeLoadPromise;
-};
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 const loadMediaPipe = async () => {
   const vision = await FilesetResolver.forVisionTasks(
@@ -203,10 +150,8 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const initThree = async (canvas: HTMLCanvasElement) => {
     if (!product.model_3d) return;
 
-    await loadThreeJS();
     if (!canvas.isConnected) return;
 
-    const THREE = (window as any).THREE;
     const width = canvas.clientWidth || 640;
     const height = canvas.clientHeight || 480;
 
@@ -248,8 +193,8 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     scene.add(faceTrackGroup);
     glassesModelRef.current = faceTrackGroup;
 
-    // Create debug red cube (5x5x5 cm in metric space -> 0.05x0.05x0.05 meters)
-    const cubeGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+    // Create debug red cube (3x3x3 cm in canonical space where 1 unit = 1 cm)
+    const cubeGeo = new THREE.BoxGeometry(3.0, 3.0, 3.0);
     const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     const debugCube = new THREE.Mesh(cubeGeo, cubeMat);
     debugCube.name = "debugCube";
@@ -264,15 +209,14 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     // Set threeLoaded to true immediately so tracking and debug cube render while loading the GLB model
     setThreeLoaded(true);
 
-    // Load Model
-    const loader = new THREE.GLTFLoader();
+    // Load Model using direct import GLTFLoader
+    const loader = new GLTFLoader();
     
     // Setup DRACO Loader for compressed GLB support
-    if (THREE.DRACOLoader) {
-      const dracoLoader = new THREE.DRACOLoader();
-      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-      loader.setDRACOLoader(dracoLoader);
-    }
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(dracoLoader);
+    
     const modelUrl = product.model_3d!;
     
     const onModelLoaded = (gltf: any) => {
@@ -449,8 +393,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     let active = true;
     let animationFrameId: number;
 
-    const THREE = (window as any).THREE;
-
     function loop() {
       if (!active) return;
 
@@ -557,17 +499,15 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
           setGlassesTransform(prev => ({ ...prev, visible: false }));
         }
 
-        // Apply manual slider adjustments to adjustmentGroup (using metricScale = 0.01 to map cm to meters)
+        // Apply manual slider adjustments to adjustmentGroup in centimeters (canonical space)
         if (threeLoaded && adjustmentGroupRef.current) {
           const arOffsetX = product.ar_offset_x || 0.0;
           const arOffsetY = product.ar_offset_y || 0.0;
           const arOffsetZ = product.ar_offset_z || 0.0;
 
-          const metricScale = 0.01; // Compacts model from cm scale to meter scale for perspective camera compatibility
-
-          const tx = (arOffsetX + offsetXRef.current * 0.05) * metricScale;
-          const ty = (arOffsetY + offsetYRef.current * 0.05) * metricScale;
-          const tz = arOffsetZ * metricScale;
+          const tx = arOffsetX + offsetXRef.current * 0.05;
+          const ty = arOffsetY + offsetYRef.current * 0.05;
+          const tz = arOffsetZ;
 
           adjustmentGroupRef.current.position.set(tx, ty, tz);
 
@@ -578,7 +518,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
 
           const arScale = product.ar_scale || 1.0;
           const baseScale = 7.5 * scaleAdjustment; // default is 14.625 cm
-          const s = baseScale * arScale * extraScaleRef.current * metricScale;
+          const s = baseScale * arScale * extraScaleRef.current;
           adjustmentGroupRef.current.scale.set(s, s, s);
         }
 
@@ -603,7 +543,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
 
   // Helper to render beautiful, 100% transparent vector glasses matching the product style
   const renderGlassesSVG = () => {
-    if (product.ar_image && !useVectorModel) {
+    if (product.ar_image) {
       return (
         <img 
           src={product.ar_image} 
