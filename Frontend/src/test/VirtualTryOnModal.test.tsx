@@ -58,11 +58,11 @@ describe('VirtualTryOnModal Component', () => {
     // Durante la carga debe mostrar el spinner de inicio
     // Cuando la cámara falla, mostrará un error. Verificamos que ambos casos muestran texto relevante.
     // El texto "Iniciando Probador Virtual..." aparece si hay carga, o el error si falla la cámara.
-    const loadingOrErrorText = screen.queryByText(/Iniciando Probador Virtual|Error Cámara|NotAllowedError/i);
+    const loadingOrErrorText = screen.queryByText(/Iniciando Probador Virtual|Error Probador|NotAllowedError/i);
     // Se espera encontrar alguno de estos estados
     expect(loadingOrErrorText || screen.queryByText('En vivo') || true).toBeTruthy();
     // El panel de información (columna derecha) debe estar siempre visible
     expect(screen.getByText('Lente Elegance Titanio')).toBeInTheDocument();
-    expect(screen.getByText(/Detección MediaPipe activa/i)).toBeInTheDocument();
+    expect(screen.getByText(/Detección facial activa/i)).toBeInTheDocument();
   });
 });

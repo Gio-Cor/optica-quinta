@@ -24,7 +24,19 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
   // Products CRUD State
   const [isAddingProduct, setIsAddingProduct] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '', is_featured: false, discount_percent: 0 });
+  const [newProduct, setNewProduct] = useState<{
+    name: string;
+    brand: string;
+    price: number;
+    image: string;
+    description: string;
+    stock: number;
+    category: 'lente' | 'accesorio';
+    ar_image: string;
+    model_3d: string;
+    is_featured: boolean;
+    discount_percent: number;
+  }>({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '', is_featured: false, discount_percent: 0 });
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editProductData, setEditProductData] = useState<Partial<Product>>({});
   
