@@ -23,6 +23,35 @@ const loadMediaPipe = async () => {
   });
 };
 
+const getModelBaseConfig = (name: string) => {
+  const n = name.toLowerCase();
+  let rotationY = 0;
+  let useZAsWidth = false;
+
+  if (n.includes('elegance')) {
+    rotationY = Math.PI / 2;
+    useZAsWidth = true;
+  } else if (n.includes('ciano cafe') || n.includes('ciano café')) {
+    rotationY = Math.PI;
+    useZAsWidth = false;
+  } else if (n.includes('ciano metallic') || n.includes('ciano metalic')) {
+    rotationY = 0;
+    useZAsWidth = false;
+  } else if (n.includes('aero vintage')) {
+    rotationY = 0;
+    useZAsWidth = false;
+  } else if (n.includes('maverick green')) {
+    rotationY = 0;
+    useZAsWidth = false;
+  } else {
+    // Default fallback: assume standard Blender/Three.js glasses orientation (width along X)
+    rotationY = 0;
+    useZAsWidth = false;
+  }
+
+  return { rotationY, useZAsWidth };
+};
+
 export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onClose: () => void }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -234,19 +263,24 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         const center = new THREE.Vector3();
         box.getCenter(center);
 
+        // Determine base orientation and width axis based on product name
+        const config = getModelBaseConfig(product.name);
+
         // Normalize model size to exactly 1 unit width (1 cm)
         const size = new THREE.Vector3();
         box.getSize(size);
-        let modelWidth = size.x;
+        let modelWidth = config.useZAsWidth ? size.z : size.x;
         if (!isFinite(modelWidth) || modelWidth <= 0) {
           modelWidth = 1.0;
         }
 
         console.log("✅ Model loaded successfully.", {
-          originalWidth: size.x,
+          productName: product.name,
+          originalWidth: config.useZAsWidth ? size.z : size.x,
           normalizedWidth: modelWidth,
           center: center,
-          hasMesh: hasMesh
+          hasMesh: hasMesh,
+          config
         });
 
         // Create pivot group to center and scale correctly without translation mismatch
@@ -258,8 +292,8 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         pivotGroup.add(model);
 
 
-        // Rotate 90 degrees around Y to align the GLB's Z-axis width with the world X-axis
-        pivotGroup.rotation.y = Math.PI / 2;
+        // Rotate to align the GLB's width axis with the world X-axis (left-to-right)
+        pivotGroup.rotation.y = config.rotationY;
 
         // Scale pivotGroup so the normalized width of the glasses is 1.0 unit (1 cm)
         pivotGroup.scale.setScalar(1 / modelWidth);
