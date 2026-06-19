@@ -52,8 +52,8 @@ describe('VirtualTryOnModal Component', () => {
     fireEvent.click(closeButtons[1]);
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
-  // Test 12: Renderizado de controles de captura (En vivo / Foto / Subir)
-  it('debe renderizar los botones de fuente de imagen (En vivo, Foto, Subir) tras superar la carga inicial', async () => {
+  // Test 12: Renderizado de controles de captura (En vivo / Subir)
+  it('debe renderizar los botones de fuente de imagen (En vivo, Subir) tras superar la carga inicial', async () => {
     render(<VirtualTryOnModal product={mockProduct} onClose={mockOnClose} />);
     // Durante la carga debe mostrar el spinner de inicio
     // Cuando la cámara falla, mostrará un error. Verificamos que ambos casos muestran texto relevante.
