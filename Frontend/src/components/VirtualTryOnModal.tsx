@@ -28,12 +28,12 @@ const getModelBaseConfig = (name: string) => {
   let rotationY = 0;
   let useZAsWidth = false;
 
-  if (n.includes('elegance')) {
+  if (n.includes('elegance') || n.includes('dorado')) {
     rotationY = Math.PI / 2;
     useZAsWidth = true;
   } else if (n.includes('ciano cafe') || n.includes('ciano café')) {
-    rotationY = Math.PI;
-    useZAsWidth = false;
+    rotationY = -Math.PI / 2;
+    useZAsWidth = true;
   } else if (n.includes('ciano metallic') || n.includes('ciano metalic')) {
     rotationY = 0;
     useZAsWidth = false;
