@@ -708,17 +708,18 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         {/* Camera Feed Area */}
         <div 
           style={{ height: '60%', minHeight: '60%' }}
-          className="w-full md:!h-auto md:!min-h-0 md:flex-[1.5] bg-black relative overflow-hidden flex items-center justify-center flex-shrink-0"
+          className="w-full md:!h-auto md:!min-h-0 md:flex-[1.5] bg-black relative overflow-hidden flex-shrink-0"
         >
           {/* Floating Close Button for Mobile */}
           <button 
             onClick={onClose} 
-            className="absolute top-4 right-4 z-20 md:hidden p-2.5 bg-black/40 backdrop-blur-md text-white rounded-full hover:bg-black/60 transition-all border border-white/10"
+            className="absolute top-4 right-4 z-40 md:hidden p-2.5 bg-black/40 backdrop-blur-md text-white rounded-full hover:bg-black/60 transition-all border border-white/10 pointer-events-auto"
           >
             <X className="w-5 h-5" />
           </button>
+          
           {loadingModel && (
-            <div className="text-white text-center p-8 flex flex-col items-center gap-4">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-8 gap-4 bg-black z-30">
               <Loader2 className="w-12 h-12 animate-spin text-accent" />
               <p className="font-serif text-lg text-white">Iniciando Probador Virtual...</p>
               <p className="text-xs text-white/50 max-w-[250px]">Cargando cámara, modelos 3D e IA de detección facial...</p>
@@ -726,12 +727,12 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
           )}
 
           {error && !loadingModel && (
-            <div className="text-white text-center p-8">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-8 bg-black z-30">
               <AlertCircle className="w-16 h-16 mx-auto mb-4 opacity-50 text-red-500" />
               <p className="font-serif text-xl max-w-md mx-auto text-white">{error}</p>
               <button 
                 onClick={onClose}
-                className="mt-6 bg-accent/20 border border-accent text-accent px-6 py-2 rounded-full hover:bg-accent hover:text-white transition-all text-sm font-semibold"
+                className="mt-6 bg-accent/20 border border-accent text-accent px-6 py-2 rounded-full hover:bg-accent hover:text-white transition-all text-sm font-semibold pointer-events-auto"
               >
                 Cerrar y volver
               </button>
