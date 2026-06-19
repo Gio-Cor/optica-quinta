@@ -39,7 +39,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   }>({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '', is_featured: false, discount_percent: 0 });
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editProductData, setEditProductData] = useState<Partial<Product>>({});
-  
+
   // File upload states
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [modelFile, setModelFile] = useState<File | null>(null);
@@ -439,8 +439,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
             <button
               onClick={() => setView('dashboard')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'dashboard'
-                  ? 'bg-ink text-white shadow-md'
-                  : 'text-ink/60 hover:text-ink hover:bg-ink/5'
+                ? 'bg-ink text-white shadow-md'
+                : 'text-ink/60 hover:text-ink hover:bg-ink/5'
                 }`}
             >
               <LayoutDashboard className="w-5 h-5" />
@@ -449,8 +449,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
             <button
               onClick={() => setView('products')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'products' || view === 'lens_options'
-                  ? 'bg-ink text-white shadow-md'
-                  : 'text-ink/60 hover:text-ink hover:bg-ink/5'
+                ? 'bg-ink text-white shadow-md'
+                : 'text-ink/60 hover:text-ink hover:bg-ink/5'
                 }`}
             >
               <Package className="w-5 h-5" />
@@ -459,8 +459,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
             <button
               onClick={() => setView('appointments')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'appointments'
-                  ? 'bg-ink text-white shadow-md'
-                  : 'text-ink/60 hover:text-ink hover:bg-ink/5'
+                ? 'bg-ink text-white shadow-md'
+                : 'text-ink/60 hover:text-ink hover:bg-ink/5'
                 }`}
             >
               <Users className="w-5 h-5" />
@@ -469,8 +469,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
             <button
               onClick={() => setView('reports')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'reports'
-                  ? 'bg-ink text-white shadow-md'
-                  : 'text-ink/60 hover:text-ink hover:bg-ink/5'
+                ? 'bg-ink text-white shadow-md'
+                : 'text-ink/60 hover:text-ink hover:bg-ink/5'
                 }`}
             >
               <BarChart3 className="w-5 h-5" />
@@ -1044,7 +1044,6 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                 </div>
                 <h3 className="text-2xl font-serif text-ink mb-4 font-bold">Herramienta de Migración de Archivos</h3>
                 <p className="text-ink/60 mb-6 text-sm max-w-md mx-auto leading-relaxed">
-                  Esta herramienta migra automáticamente las imágenes de catálogo y los modelos 3D que están guardados como texto Base64 en la base de datos hacia Supabase Storage. Esto optimiza drásticamente el rendimiento en teléfonos celulares.
                 </p>
 
                 {migrationStatus === 'idle' && (
