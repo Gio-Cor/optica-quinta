@@ -1153,7 +1153,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                 )}
               </div>
             </>
-          )}
+          ) : null}
         </div>
       </main>
     </div>
