@@ -12,7 +12,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [lensOptions, setLensOptions] = useState<LensOption[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
-  const [view, setView] = useState<'dashboard' | 'products' | 'lens_options' | 'appointments' | 'reports'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'products' | 'lens_options' | 'appointments' | 'reports' | 'sales'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [showOnlyFeatured, setShowOnlyFeatured] = useState(false);
 
@@ -467,6 +467,16 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
               <span>Gestión Usuarios</span>
             </button>
             <button
+              onClick={() => setView('sales')}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'sales'
+                ? 'bg-ink text-white shadow-md'
+                : 'text-ink/60 hover:text-ink hover:bg-ink/5'
+                }`}
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span>Ventas</span>
+            </button>
+            <button
               onClick={() => setView('reports')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'reports'
                 ? 'bg-ink text-white shadow-md'
@@ -748,6 +758,10 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                         <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">% Descuento</label>
                         <input type="number" min="0" max="100" value={newProduct.discount_percent || 0} onChange={e => setNewProduct({ ...newProduct, discount_percent: Number(e.target.value) })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
                       </div>
+                      <div className="md:col-span-3">
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Descripción</label>
+                        <textarea required value={newProduct.description} onChange={e => setNewProduct({ ...newProduct, description: e.target.value })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white min-h-[80px]" placeholder="Breve descripción del producto..." />
+                      </div>
                       <div className="flex items-center h-full md:pt-6">
                         <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-ink">
                           <input type="checkbox" checked={newProduct.is_featured || false} onChange={e => setNewProduct({ ...newProduct, is_featured: e.target.checked })} className="w-5 h-5 rounded border-ink/20 text-accent focus:ring-accent" />
@@ -819,6 +833,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                               </td>
                               <td className="px-6 py-4 flex flex-col gap-3 min-w-[280px]">
                                 <input className="w-full border border-ink/10 p-2 rounded-lg bg-white font-semibold" value={editProductData.name || ''} onChange={e => setEditProductData({ ...editProductData, name: e.target.value })} placeholder="Nombre" />
+                                <textarea className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm" value={editProductData.description || ''} onChange={e => setEditProductData({ ...editProductData, description: e.target.value })} placeholder="Descripción" rows={2} />
 
                                 <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
                                   <span className="text-[10px] font-bold text-ink/40 uppercase">Imagen Catálogo</span>
@@ -1009,7 +1024,58 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                 })}
               </div>
             </>
-          ) : (
+          ) : view === 'sales' ? (
+            <>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-ink mb-1">Registro de Ventas</h1>
+                <p className="text-ink/50 text-sm font-medium">Historial completo de ventas y transacciones realizadas.</p>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-ink/5 overflow-hidden mt-8">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-slate-50 text-xs uppercase tracking-widest font-bold border-b border-ink/5">
+                        <th className="px-6 py-4">ID Orden</th>
+                        <th className="px-6 py-4">Fecha y Hora</th>
+                        <th className="px-6 py-4">Cliente</th>
+                        <th className="px-6 py-4">Método de Pago</th>
+                        <th className="px-6 py-4 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink/5">
+                      {workOrders.length === 0 ? (
+                        <tr><td colSpan={5} className="text-center py-12 text-ink/50 font-bold">No hay ventas registradas.</td></tr>
+                      ) : workOrders.slice().reverse().map(w => (
+                        <tr key={w.id} className="hover:bg-slate-50/50 transition-all">
+                          <td className="px-6 py-4 font-bold text-ink">#{w.id}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-ink/70">
+                            {new Date(w.created_at).toLocaleString('es-CL', {
+                              day: '2-digit', month: 'short', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm font-bold text-ink">
+                              {w.user_name || (w.user_id ? `Cliente ID: ${w.user_id}` : 'Cliente Web Anónimo')}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase">
+                              Pago Integrado
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right font-bold text-accent">
+                            ${Number(w.total_amount).toLocaleString('es-CL')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : view === 'reports' ? (
             /* Reports View */
             <>
               {/* Reportes Header */}
