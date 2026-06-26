@@ -98,12 +98,25 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
   const handleSimulatePayment = async () => {
     setPaymentStep('processing');
     try {
-      // Registrar la orden en Supabase para que aparezca en el panel de administrador
+      const selectedCartItems = items.filter((_, idx) => selectedItems[idx]);
+
+      // Registrar la orden en Supabase
       await api.createWorkOrder(
         loggedInUser?.id || null, 
-        items.filter((_, idx) => selectedItems[idx]),
+        selectedCartItems,
         totalPrice
       );
+
+      // Reducir el stock de cada producto comprado
+      for (const item of selectedCartItems) {
+        const product = item.product;
+        const newStock = Math.max(0, (product.stock ?? 0) - item.quantity);
+        try {
+          await api.updateProduct(product.id, { stock: newStock });
+        } catch (stockErr) {
+          console.error(`Error actualizando stock del producto ${product.id}:`, stockErr);
+        }
+      }
       
       setPaymentStep('success');
       setTimeout(() => {

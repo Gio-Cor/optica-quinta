@@ -151,29 +151,83 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
             </div>
 
             <div className="space-y-6 mb-8 py-8 border-y border-ink/10">
-              <div className="flex gap-4 items-center">
-                <CheckCircle2 className="w-6 h-6 text-ink shrink-0" />
-                <div>
-                  <p className="font-semibold text-sm">Obtén un 15% de descuento</p>
-                  <p className="text-xs text-ink/60 underline cursor-pointer hover:text-accent">En tu primera compra aquí.</p>
-                </div>
-              </div>
-              <div className="w-full h-px bg-ink/5" />
-              <div className="flex gap-4 items-center">
-                <Shield className="w-6 h-6 text-ink shrink-0" />
-                <div>
-                  <p className="font-semibold text-sm">Garantía óptica y estética</p>
-                  <p className="text-xs text-ink/60 underline cursor-pointer hover:text-accent">Para ver nuestras garantías, haz click aquí</p>
-                </div>
-              </div>
-              <div className="w-full h-px bg-ink/5" />
+              {/* Badge 1: descuento primera compra — solo si NO tiene descuento ya aplicado */}
+              {(!product.discount_percent || product.discount_percent === 0) && (
+                <>
+                  <div className="flex gap-4 items-center">
+                    <CheckCircle2 className="w-6 h-6 text-ink shrink-0" />
+                    <div>
+                      <p className="font-semibold text-sm">Obtén un 15% de descuento</p>
+                      <p className="text-xs text-ink/60 underline cursor-pointer hover:text-accent">En tu primera compra aquí.</p>
+                    </div>
+                  </div>
+                  <div className="w-full h-px bg-ink/5" />
+                </>
+              )}
+
+              {/* Badge 2: garantía — solo para lentes, no accesorios */}
+              {product.category === 'lente' && (
+                <>
+                  <div className="flex gap-4 items-center">
+                    <Shield className="w-6 h-6 text-ink shrink-0" />
+                    <div>
+                      <p className="font-semibold text-sm">Garantía óptica y estética</p>
+                      <p className="text-xs text-ink/60 underline cursor-pointer hover:text-accent">Para ver nuestras garantías, haz click aquí</p>
+                    </div>
+                  </div>
+                  <div className="w-full h-px bg-ink/5" />
+                </>
+              )}
+
+              {/* Badge 3: envío — siempre visible, pero texto diferente según stock */}
               <div className="flex gap-4 items-center">
                 <Truck className="w-6 h-6 text-ink shrink-0" />
                 <div>
-                  <p className="font-semibold text-sm">Envío gratis en todo Chile</p>
-                  <p className="text-xs text-ink/60 underline cursor-pointer hover:text-accent">Recibe en 24 horas con retiro en tienda*</p>
+                  {product.stock && product.stock > 0 ? (
+                    <>
+                      <p className="font-semibold text-sm">Envío gratis en todo Chile</p>
+                      <p className="text-xs text-ink/60 underline cursor-pointer hover:text-accent">
+                        {product.stock <= 3
+                          ? `¡Solo quedan ${product.stock} unidades! Recibe en 24h con retiro en tienda*`
+                          : 'Recibe en 24 horas con retiro en tienda*'}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-sm text-red-600">Producto agotado temporalmente</p>
+                      <p className="text-xs text-ink/60">Puedes agendar una cita para consultar disponibilidad.</p>
+                    </>
+                  )}
                 </div>
               </div>
+
+              {/* Badge 4: cristales Rodenstock — solo si es lente */}
+              {product.category === 'lente' && (
+                <>
+                  <div className="w-full h-px bg-ink/5" />
+                  <div className="flex gap-4 items-center">
+                    <CheckCircle2 className="w-6 h-6 text-accent shrink-0" />
+                    <div>
+                      <p className="font-semibold text-sm">Compatible con cristales Rodenstock</p>
+                      <p className="text-xs text-ink/60">Agenda tu cita para diseñar tus cristales alemanes a medida.</p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Badge especial: promo 2x1 — si stock >= 10 */}
+              {product.stock && product.stock >= 10 && (
+                <>
+                  <div className="w-full h-px bg-ink/5" />
+                  <div className="flex gap-4 items-center">
+                    <CheckCircle2 className="w-6 h-6 text-orange-500 shrink-0" />
+                    <div>
+                      <p className="font-semibold text-sm text-orange-600">Promoción 2x1 activa</p>
+                      <p className="text-xs text-ink/60">Lleva dos unidades y paga solo una. Oferta por tiempo limitado.</p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="mb-10 flex justify-between items-end">
