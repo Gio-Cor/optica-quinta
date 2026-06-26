@@ -10,7 +10,6 @@ Sistema web completo para Ópticas Quinta que incluye un catálogo de productos,
 ### Frontend
 - **Framework:** React 18 (Vite) + TypeScript
 - **Estilos:** Tailwind CSS + Framer Motion
-- **Inteligencia Artificial:** Google MediaPipe (Face Mesh)
 - **Renderizado 3D:** Three.js (@react-three/fiber)
 
 ### Backend

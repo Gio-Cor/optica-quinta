@@ -11,6 +11,10 @@ export interface Product {
   model_3d?: string;
   is_featured?: boolean;
   discount_percent?: number;
+  ar_scale?: number;
+  ar_offset_x?: number;
+  ar_offset_y?: number;
+  ar_offset_z?: number;
 }
 
 export interface Appointment {

@@ -1,22 +1,55 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertCircle, X, Maximize2, ShoppingBag, Loader2, Camera, Upload } from 'lucide-react';
+import { AlertCircle, X, Maximize2, ShoppingBag, Loader2, Upload } from 'lucide-react';
 import { Product } from '../types';
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
-// Dynamic script loader for ThreeJS & GLTFLoader
-const loadThreeJS = async () => {
-  if (!(window as any).THREE) {
-    const threeScript = document.createElement('script');
-    threeScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-    document.head.appendChild(threeScript);
-    await new Promise(resolve => threeScript.onload = resolve);
+const loadMediaPipe = async () => {
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17/wasm"
+  );
+  return await FaceLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+      delegate: "GPU"
+    },
+    runningMode: "VIDEO",
+    outputFacialTransformationMatrixes: true,
+    outputFaceBlendshapes: false,
+    numFaces: 1
+  });
+};
+
+const getModelBaseConfig = (name: string) => {
+  const n = name.toLowerCase();
+  let rotationY = 0;
+  let useZAsWidth = false;
+
+  if (n.includes('elegance') || n.includes('dorado')) {
+    rotationY = Math.PI / 2;
+    useZAsWidth = true;
+  } else if (n.includes('ciano cafe') || n.includes('ciano café')) {
+    rotationY = -Math.PI / 2;
+    useZAsWidth = true;
+  } else if (n.includes('ciano metallic') || n.includes('ciano metalic')) {
+    rotationY = 0;
+    useZAsWidth = false;
+  } else if (n.includes('aero vintage')) {
+    rotationY = 0;
+    useZAsWidth = false;
+  } else if (n.includes('maverick green')) {
+    rotationY = 0;
+    useZAsWidth = false;
+  } else {
+    // Default fallback: assume standard Blender/Three.js glasses orientation (width along X)
+    rotationY = 0;
+    useZAsWidth = false;
   }
-  if (!(window as any).THREE.GLTFLoader) {
-    const loaderScript = document.createElement('script');
-    loaderScript.src = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/loaders/GLTFLoader.js';
-    document.head.appendChild(loaderScript);
-    await new Promise(resolve => loaderScript.onload = resolve);
-  }
+
+  return { rotationY, useZAsWidth };
 };
 
 export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onClose: () => void }) => {
@@ -24,7 +57,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingModel, setLoadingModel] = useState(true);
-  const [faceLandmarker, setFaceLandmarker] = useState<any>(null);
   const [scaleAdjustment, setScaleAdjustment] = useState(1.95);
   const [faceDetected, setFaceDetected] = useState(false);
   const [captureMode, setCaptureMode] = useState<'live' | 'photo'>('live');
@@ -34,20 +66,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const cachedResultsRef = useRef<any>(null);
   
   // Handlers for taking and uploading photos
-  const handleTakePhoto = () => {
-    if (!videoRef.current) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      setImageSrc(canvas.toDataURL('image/jpeg'));
-      setCaptureMode('photo');
-      cachedResultsRef.current = null; // reset cache
-    }
-  };
-
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -118,18 +136,24 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const [useVectorModel, setUseVectorModel] = useState(!product.model_3d);
 
   const [rotationX, setRotationX] = useState(0);
-  const [rotationY, setRotationY] = useState(-90);
-  const [rotationZ, setRotationZ] = useState(180);
+  const [rotationY, setRotationY] = useState(0);
+  const [rotationZ, setRotationZ] = useState(0);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [extraScale, setExtraScale] = useState(1.0);
 
   const rotationXRef = useRef(0);
-  const rotationYRef = useRef(-90);
-  const rotationZRef = useRef(180);
+  const rotationYRef = useRef(0);
+  const rotationZRef = useRef(0);
   const offsetXRef = useRef(0);
   const offsetYRef = useRef(0);
   const extraScaleRef = useRef(1.0);
+
+  // New MediaPipe / Three refs
+  const faceLandmarkerRef = useRef<FaceLandmarker | null>(null);
+  const faceMatrixRef = useRef<any>(null);
+  const adjustmentGroupRef = useRef<any>(null);
+  const lastVideoTimeRef = useRef<number>(-1);
 
   const threeCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const threeSceneRef = useRef<any>(null);
@@ -137,14 +161,13 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
   const threeRendererRef = useRef<any>(null);
   const glassesModelRef = useRef<any>(null);
   const [threeLoaded, setThreeLoaded] = useState(false);
+  const [modelStatus, setModelStatus] = useState<'none' | 'loading' | 'loaded' | 'error'>('none');
 
   const initThree = async (canvas: HTMLCanvasElement) => {
     if (!product.model_3d) return;
 
-    await loadThreeJS();
     if (!canvas.isConnected) return;
 
-    const THREE = (window as any).THREE;
     const width = canvas.clientWidth || 640;
     const height = canvas.clientHeight || 480;
 
@@ -152,65 +175,167 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     const scene = new THREE.Scene();
     threeSceneRef.current = scene;
 
-    // Create Orthographic Camera (pixels mapping)
-    const camera = new THREE.OrthographicCamera(0, width, 0, height, -1000, 1000);
+    // Create Perspective Camera
+    const fov = 63;
+    const aspect = width / height;
+    const camera = new THREE.PerspectiveCamera(fov, aspect, 0.01, 2000);
+    camera.position.set(0, 0, 0);
+    camera.lookAt(0, 0, -1);
     threeCameraRef.current = camera;
 
     // Create WebGLRenderer
     const renderer = new THREE.WebGLRenderer({
       canvas: canvas,
       alpha: true,
-      antialias: true
+      antialias: true,
+      logarithmicDepthBuffer: true
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     threeRendererRef.current = renderer;
 
-    // Add Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    // Add Lights for complete PBR support
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); // Intense ambient light
     scene.add(ambientLight);
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight1.position.set(0, 1, 1).normalize();
-    scene.add(dirLight1);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    directionalLight.position.set(0, 5, 10); // Project light from front and top
+    scene.add(directionalLight);
 
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-    dirLight2.position.set(0, -1, -1).normalize();
-    scene.add(dirLight2);
+    // Create tracking group hierarchy immediately so tracking starts working right away
+    const faceTrackGroup = new THREE.Group();
+    faceTrackGroup.matrixAutoUpdate = false;
+    faceTrackGroup.visible = false; // Hide initially until face is detected
+    scene.add(faceTrackGroup);
+    glassesModelRef.current = faceTrackGroup;
 
-    // Load Model
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-      product.model_3d,
-      (gltf: any) => {
+    // Create adjustment group for sliders
+    const adjustmentGroup = new THREE.Group();
+    faceTrackGroup.add(adjustmentGroup);
+    adjustmentGroupRef.current = adjustmentGroup;
+
+    // Set threeLoaded to true immediately so tracking and debug cube render while loading the GLB model
+    setThreeLoaded(true);
+    setModelStatus('loading');
+
+    // Load Model using direct import GLTFLoader
+    const loader = new GLTFLoader();
+    
+    // Setup DRACO Loader for compressed GLB support
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(dracoLoader);
+    
+    const modelUrl = product.model_3d!;
+    
+    const onModelLoaded = (gltf: any) => {
+      try {
         if (!canvas.isConnected) return;
         const model = gltf.scene;
 
-        // Auto center the geometry
-        const box = new THREE.Box3().setFromObject(model);
+        // Force update world matrices so child matrixWorld matches their geometry positions
+        model.updateMatrixWorld(true);
+
+        // Compute bounding box based only on actual meshes to avoid camera/helper bounds distortion
+        const box = new THREE.Box3();
+        let hasMesh = false;
+        model.traverse((child: any) => {
+          if (child.isMesh) {
+            if (!child.geometry.boundingBox) {
+              child.geometry.computeBoundingBox();
+            }
+            const meshBox = child.geometry.boundingBox.clone();
+            meshBox.applyMatrix4(child.matrixWorld);
+            if (!hasMesh) {
+              box.copy(meshBox);
+              hasMesh = true;
+            } else {
+              box.union(meshBox);
+            }
+          }
+        });
+
+        if (!hasMesh) {
+          // Fallback if no meshes found in hierarchy
+          box.setFromObject(model);
+        }
+
         const center = new THREE.Vector3();
         box.getCenter(center);
-        model.position.sub(center);
 
-        // Apply initial rotation offsets from refs
-        model.rotation.x = (rotationXRef.current * Math.PI) / 180;
-        model.rotation.y = (rotationYRef.current * Math.PI) / 180;
-        model.rotation.z = (rotationZRef.current * Math.PI) / 180;
+        // Determine base orientation and width axis based on product name
+        const config = getModelBaseConfig(product.name);
 
-        // Wrap model in parent group for precise manipulation
-        const group = new THREE.Group();
-        group.add(model);
+        // Normalize model size to exactly 1 unit width (1 cm)
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        let modelWidth = config.useZAsWidth ? size.z : size.x;
+        if (!isFinite(modelWidth) || modelWidth <= 0) {
+          modelWidth = 1.0;
+        }
 
-        scene.add(group);
-        glassesModelRef.current = group;
-        setThreeLoaded(true);
+        console.log("✅ Model loaded successfully.", {
+          productName: product.name,
+          originalWidth: config.useZAsWidth ? size.z : size.x,
+          normalizedWidth: modelWidth,
+          center: center,
+          hasMesh: hasMesh,
+          config
+        });
+
+        // Create pivot group to center and scale correctly without translation mismatch
+        const pivotGroup = new THREE.Group();
+        pivotGroup.name = "pivotGroup";
+
+        // Center the model inside pivotGroup
+        model.position.copy(center).multiplyScalar(-1);
+        pivotGroup.add(model);
+
+
+        // Rotate to align the GLB's width axis with the world X-axis (left-to-right)
+        pivotGroup.rotation.y = config.rotationY;
+
+        // Scale pivotGroup so the normalized width of the glasses is 1.0 unit (1 cm)
+        pivotGroup.scale.setScalar(1 / modelWidth);
+
+        // Add pivotGroup to adjustmentGroup
+        adjustmentGroup.add(pivotGroup);
+        setModelStatus('loaded');
+
+
 
         // Render once to test
         renderer.render(scene, camera);
-      },
-      undefined,
-      (err: any) => console.error("Error loading GLB model in VirtualTryOnModal:", err)
-    );
+      } catch (err: any) {
+        console.error("❌ Error in onModelLoaded:", err);
+        setError(`Error al procesar modelo 3D: ${err?.message || err}`);
+        setModelStatus('error');
+      }
+    };
+
+    const onModelError = (err: any) => {
+      console.error("❌ Error loading GLB model:", err);
+      setError(`Error cargando modelo 3D: ${err?.message || 'Archivo corrupto o formato no soportado.'}`);
+      setModelStatus('error');
+    };
+
+    if (modelUrl.startsWith('data:')) {
+      try {
+        console.log("📦 Modelo 3D detectado como base64 data URL, convirtiendo a ArrayBuffer...");
+        const base64 = modelUrl.split(',')[1];
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        loader.parse(bytes.buffer, '', onModelLoaded, onModelError);
+      } catch (parseErr: any) {
+        console.error("❌ Error parsing base64 model:", parseErr);
+        setError(`Error procesando modelo 3D: ${parseErr?.message || parseErr}`);
+      }
+    } else {
+      loader.load(modelUrl, onModelLoaded, undefined, onModelError);
+    }
   };
 
   const threeCanvasCallbackRef = useCallback((canvas: HTMLCanvasElement | null) => {
@@ -218,6 +343,19 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       if (threeRendererRef.current) {
         threeRendererRef.current.dispose();
         threeRendererRef.current = null;
+      }
+      if (threeSceneRef.current) {
+        const scene = threeSceneRef.current;
+        scene.traverse((object: any) => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            if (Array.isArray(object.material)) {
+              object.material.forEach((mat: any) => mat.dispose());
+            } else {
+              object.material.dispose();
+            }
+          }
+        });
       }
       glassesModelRef.current = null;
       threeSceneRef.current = null;
@@ -236,12 +374,10 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       if (!threeCanvasRef.current || !threeRendererRef.current || !threeCameraRef.current) return;
       const w = threeCanvasRef.current.clientWidth;
       const h = threeCanvasRef.current.clientHeight;
-      threeRendererRef.current.setSize(w, h);
+      if (w === 0 || h === 0) return;
+      threeRendererRef.current.setSize(w, h, false);
       
-      threeCameraRef.current.left = 0;
-      threeCameraRef.current.right = w;
-      threeCameraRef.current.top = 0;
-      threeCameraRef.current.bottom = h;
+      threeCameraRef.current.aspect = w / h;
       threeCameraRef.current.updateProjectionMatrix();
     };
 
@@ -255,81 +391,63 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     width: number;
     rotate: number;
     visible: boolean;
-  }>({ left: 50, top: 42, width: 43, rotate: 0, visible: true });
+  }>({ left: 50, top: 42, width: 43, rotate: 0, visible: false });
 
-  // Initialize MediaPipe and Camera
+  // Initialize Camera + MediaPipe FaceLandmarker
   useEffect(() => {
     let active = true;
-    let landmarkerInstance: any = null;
     let localStream: MediaStream | null = null;
 
     async function initAR() {
       setLoadingModel(true);
       setError(null);
-
-      // 1. Load MediaPipe Model
-      try {
-        // Dynamic import of Google MediaPipe Tasks-Vision ESM from CDN
-        const visionModule = await import(
-          /* @vite-ignore */
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.mjs"
-        );
-        
-        if (!active) return;
-
-        const { FilesetResolver, FaceLandmarker } = visionModule;
-
-        // Resolve WASM assets
-        const filesetResolver = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
-        );
-
-        if (!active) return;
-
-        // Create the Landmarker instance using the official lightweight face model
-        landmarkerInstance = await FaceLandmarker.createFromOptions(filesetResolver, {
-          baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-            delegate: "GPU"
-          },
-          runningMode: "VIDEO",
-          numFaces: 1,
-          outputFaceBlendshapes: false,
-          outputFacialTransformationMatrixes: false
-        });
-
-        if (!active) return;
-        setFaceLandmarker(landmarkerInstance);
-      } catch (modelErr: any) {
-        console.error("Error loading MediaPipe model:", modelErr);
-        if (active) {
-          setError(`[Error IA] No se pudo descargar el modelo: ${modelErr?.name || 'Error'}: ${modelErr?.message || modelErr}`);
-          setLoadingModel(false);
-        }
-        return;
+      if (!product.model_3d) {
+        setModelStatus('none');
       }
 
-      // 2. Start Camera Feed
       try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        // Parallel load of camera feed and FaceLandmarker
+        const cameraPromise = navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
+        }).catch(err => {
+          console.warn("⚠️ Camera access failed, falling back to static photo mode:", err);
+          return null;
         });
         
+        const mediaPipePromise = loadMediaPipe();
+
+        const [mediaStream, landmarker] = await Promise.all([cameraPromise, mediaPipePromise]);
+
         if (!active) {
-          mediaStream.getTracks().forEach(track => track.stop());
+          if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+          }
+          landmarker.close();
           return;
         }
 
-        localStream = mediaStream;
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
+        faceLandmarkerRef.current = landmarker;
+
+        if (mediaStream) {
+          localStream = mediaStream;
+          setStream(mediaStream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+          }
+          setCaptureMode('live');
+        } else {
+          // Camera failed: fall back to static image mode with placeholder face
+          console.log("Using static fallback image for face tracking.");
+          setCaptureMode('photo');
+          setImageSrc('/man_glasses_hud.png');
+          cachedResultsRef.current = null; // reset cache
         }
+
         setLoadingModel(false);
-      } catch (camErr: any) {
-        console.error("Error accessing camera:", camErr);
+      } catch (err: any) {
+        console.error("Initialization error:", err);
         if (active) {
-          setError(`[Error Cámara] [${camErr?.name || 'Error'}]: ${camErr?.message || 'Asegúrate de dar permisos de cámara en Safari.'}`);
+          setError(`[Error Probador] [${err?.name || 'Error'}]: ${err?.message || 'Asegúrate de dar permisos de cámara y cargar correctamente.'}`);
           setLoadingModel(false);
         }
       }
@@ -342,8 +460,12 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
       }
+      if (faceLandmarkerRef.current) {
+        faceLandmarkerRef.current.close();
+        faceLandmarkerRef.current = null;
+      }
     };
-  }, []);
+  }, [product.model_3d]);
 
   // Play camera stream as soon as video element is mounted and stream is ready
   useEffect(() => {
@@ -354,174 +476,162 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     }
   }, [stream]);
 
-  // Frame processing loop for Face Tracking
+  // Unified loop for tracking and rendering
   useEffect(() => {
-    if (!faceLandmarker || !stream || !videoRef.current) return;
-
     let active = true;
-    let lastVideoTime = -1;
     let animationFrameId: number;
 
-    function predictLoop() {
+    function loop() {
       if (!active) return;
 
-      try {
-        let results: any = null;
-        let didEvaluate = false;
+      if (captureMode === 'live') {
+        if (!videoRef.current || videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
+          animationFrameId = requestAnimationFrame(loop);
+          return;
+        }
+      }
 
-        if (captureMode === 'live') {
-          const video = videoRef.current;
-          if (video && video.readyState >= 3) {
-            const currentTime = video.currentTime;
-            if (currentTime !== lastVideoTime) {
-              lastVideoTime = currentTime;
-              results = faceLandmarker.detectForVideo(video, performance.now());
-              didEvaluate = true;
+      try {
+        const landmarker = faceLandmarkerRef.current;
+        const canvas = threeCanvasRef.current;
+        const renderer = threeRendererRef.current;
+        const scene = threeSceneRef.current;
+        const camera = threeCameraRef.current;
+
+        // Sync Three.js size/aspect ratio if Three.js is loaded
+        if (threeLoaded && canvas && renderer && camera) {
+          const canvasW = canvas.clientWidth;
+          const canvasH = canvas.clientHeight;
+          if (canvasW > 0 && canvasH > 0) {
+            if (camera.aspect !== canvasW / canvasH) {
+              renderer.setSize(canvasW, canvasH, false);
+              camera.aspect = canvasW / canvasH;
+              camera.updateProjectionMatrix();
             }
-          }
-        } else if (captureMode === 'photo' && staticImageRef.current) {
-          if (staticImageRef.current.complete && staticImageRef.current.naturalWidth > 0) {
-            if (!cachedResultsRef.current) {
-              // Only detect once per image to save CPU. Use detectForVideo because runningMode is VIDEO.
-              cachedResultsRef.current = faceLandmarker.detectForVideo(staticImageRef.current, performance.now());
-            }
-            results = cachedResultsRef.current;
-            didEvaluate = true;
           }
         }
 
-        if (didEvaluate) {
-          if (results && results.faceLandmarks && results.faceLandmarks.length > 0) {
-              const landmarks = results.faceLandmarks[0];
-              const leftEye = landmarks[33];
-              const rightEye = landmarks[263];
-              
-              if (leftEye && rightEye) {
-                const eyeDistance = Math.hypot(rightEye.x - leftEye.x, rightEye.y - leftEye.y);
-                setFaceDetected(true);
-                if (!useVectorModel && glassesModelRef.current && threeCanvasRef.current) {
-                  // --- 3D GLB Face Overlay Tracking ---
-                  const width = threeCanvasRef.current.clientWidth;
-                  const height = threeCanvasRef.current.clientHeight;
+        let results = null;
 
-                  // Center coordinates + manual offset
-                  const midX = ((leftEye.x + rightEye.x) / 2) * width;
-                  const midY = height - (((leftEye.y + rightEye.y) / 2) * height);
-                  
-                  glassesModelRef.current.position.set(
-                    midX + offsetXRef.current, 
-                    midY + offsetYRef.current, 
-                    0
-                  );
-
-                  // Update inner model rotation using the sliders
-                  const innerModel = glassesModelRef.current.children[0];
-                  if (innerModel) {
-                    innerModel.rotation.x = (rotationXRef.current * Math.PI) / 180;
-                    innerModel.rotation.y = (rotationYRef.current * Math.PI) / 180;
-                    innerModel.rotation.z = (rotationZRef.current * Math.PI) / 180;
-                  }
-
-                  // Calculate tracking rotation angle (Roll)
-                  const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
-                  glassesModelRef.current.rotation.z = -roll;
-
-                  // Estimate tracking Yaw (rotation around Y axis)
-                  const noseTip = landmarks[1];
-                  if (noseTip) {
-                    const midEyeX = (leftEye.x + rightEye.x) / 2;
-                    const yaw = ((noseTip.x - midEyeX) / eyeDistance) * 0.8;
-                    glassesModelRef.current.rotation.y = yaw;
-                  }
-
-                  // Estimate tracking Pitch (rotation around X axis)
-                  const forehead = landmarks[10];
-                  const chin = landmarks[152];
-                  if (noseTip && forehead && chin) {
-                    const midEyeY = (leftEye.y + rightEye.y) / 2;
-                    const faceHeight = Math.abs(chin.y - forehead.y);
-                    const pitch = ((noseTip.y - midEyeY) / faceHeight) * 1.5;
-                    // Standard pitch offset so glasses sit straight
-                    glassesModelRef.current.rotation.x = pitch - 0.15;
-                  }
-
-                  // Scale based on eye distance * manual scale adjustment
-                  const scaleVal = eyeDistance * width * 1.7 * (scaleAdjustment / 1.95) * extraScaleRef.current;
-                  glassesModelRef.current.scale.set(scaleVal, scaleVal, scaleVal);
-
-                  // Render ThreeJS Scene
-                  if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
-                    threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
-                  }
-
-                  // Hide 2D layout overlay
-                  setGlassesTransform({
-                    left: 50,
-                    top: 42,
-                    width: 0,
-                    rotate: 0,
-                    visible: false
-                  });
-                } else {
-                  // --- 2D / SVG Overlay Tracking ---
-                  // Hide 3D model if it exists
-                  if (glassesModelRef.current) {
-                    glassesModelRef.current.position.set(-1000, -1000, 0);
-                    if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
-                      threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
-                    }
-                  }
-
-                  setGlassesTransform({
-                    left: 50,
-                    top: 42,
-                    width: eyeDistance * scaleAdjustment * 100,
-                    rotate: 0,
-                    visible: true
-                  });
-                }
-              } else {
-                // Hide both overlays
-                if (glassesModelRef.current) {
-                  glassesModelRef.current.position.set(-1000, -1000, 0);
-                  if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
-                    threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
-                  }
-                }
-                setGlassesTransform(prev => ({ ...prev, visible: false }));
-                setFaceDetected(false);
-              }
+        if (landmarker) {
+          if (captureMode === 'live' && videoRef.current && videoRef.current.readyState >= 2) {
+            const video = videoRef.current;
+            if (video.currentTime !== lastVideoTimeRef.current) {
+              results = landmarker.detectForVideo(video, performance.now());
+              lastVideoTimeRef.current = video.currentTime;
+              cachedResultsRef.current = results;
             } else {
-              if (glassesModelRef.current) {
-                glassesModelRef.current.position.set(-1000, -1000, 0);
-                if (threeRendererRef.current && threeSceneRef.current && threeCameraRef.current) {
-                  threeRendererRef.current.render(threeSceneRef.current, threeCameraRef.current);
-                }
-              }
-              setGlassesTransform(prev => ({ ...prev, visible: false }));
-              setFaceDetected(false);
+              results = cachedResultsRef.current;
             }
-        } // Cierra if (didEvaluate)
-      } catch (e) {
-        console.error("Frame tracking error:", e);
+          } else if (captureMode === 'photo' && staticImageRef.current) {
+            const img = staticImageRef.current;
+            if (img.complete && img.naturalWidth > 0) {
+              if (!cachedResultsRef.current) {
+                results = landmarker.detectForVideo(img, performance.now());
+                cachedResultsRef.current = results;
+              } else {
+                results = cachedResultsRef.current;
+              }
+            }
+          }
+        }
+
+        const hasFace = !!(results && results.facialTransformationMatrixes && results.facialTransformationMatrixes.length > 0);
+        setFaceDetected(hasFace);
+
+        if (hasFace) {
+          const matrixData = results.facialTransformationMatrixes[0].data;
+
+          if (useVectorModel) {
+            // 2D SVG overlay mode
+            const landmarks = results.faceLandmarks[0];
+            const pRightEye = landmarks[33];
+            const pLeftEye = landmarks[263];
+            if (pRightEye && pLeftEye) {
+              const dx = pLeftEye.x - pRightEye.x;
+              const dy = pLeftEye.y - pRightEye.y;
+              const midX = pRightEye.x + dx / 2;
+              const midY = pRightEye.y + dy / 2;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+              setGlassesTransform({
+                left: midX * 100,
+                top: midY * 100,
+                width: dist * 100 * scaleAdjustment,
+                rotate: angle,
+                visible: true
+              });
+            }
+            if (glassesModelRef.current) {
+              glassesModelRef.current.visible = false;
+            }
+          } else {
+            // 3D Model tracking mode
+            if (threeLoaded && glassesModelRef.current && THREE) {
+              if (!faceMatrixRef.current) {
+                faceMatrixRef.current = new THREE.Matrix4();
+              }
+              glassesModelRef.current.visible = true;
+              faceMatrixRef.current.fromArray(matrixData);
+              glassesModelRef.current.matrix.copy(faceMatrixRef.current);
+              glassesModelRef.current.matrixWorldNeedsUpdate = true;
+            }
+            setGlassesTransform(prev => ({ ...prev, visible: false }));
+          }
+        } else {
+          // No face detected
+          if (glassesModelRef.current) {
+            glassesModelRef.current.visible = false;
+          }
+          setGlassesTransform(prev => ({ ...prev, visible: false }));
+        }
+
+        // Apply manual slider adjustments to adjustmentGroup in centimeters (canonical space)
+        if (threeLoaded && adjustmentGroupRef.current) {
+          const arOffsetX = product.ar_offset_x || 0.0;
+          const arOffsetY = product.ar_offset_y || 0.0;
+          const arOffsetZ = product.ar_offset_z || 0.0;
+
+          const tx = arOffsetX + offsetXRef.current * 0.05;
+          const ty = arOffsetY + offsetYRef.current * 0.05;
+          const tz = arOffsetZ;
+
+          adjustmentGroupRef.current.position.set(tx, ty, tz);
+
+          const rx = (rotationXRef.current * Math.PI) / 180;
+          const ry = (rotationYRef.current * Math.PI) / 180;
+          const rz = (rotationZRef.current * Math.PI) / 180;
+          adjustmentGroupRef.current.rotation.set(rx, ry, rz);
+
+          const arScale = product.ar_scale || 1.0;
+          const baseScale = 7.5 * scaleAdjustment; // default is 14.625 cm
+          const s = baseScale * arScale * extraScaleRef.current;
+          adjustmentGroupRef.current.scale.set(s, s, s);
+        }
+
+        // Render the Three.js scene
+        if (threeLoaded && renderer && scene && camera) {
+          renderer.render(scene, camera);
+        }
+      } catch (err) {
+        console.error("Error in tracking/rendering loop:", err);
       }
-      
-      animationFrameId = requestAnimationFrame(predictLoop);
+
+      animationFrameId = requestAnimationFrame(loop);
     }
 
-    predictLoop();
+    loop();
 
     return () => {
       active = false;
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [faceLandmarker, stream, scaleAdjustment, captureMode]);
+  }, [threeLoaded, captureMode, useVectorModel, scaleAdjustment]);
 
   // Helper to render beautiful, 100% transparent vector glasses matching the product style
   const renderGlassesSVG = () => {
-    if (product.ar_image && !useVectorModel) {
+    if (product.ar_image) {
       return (
         <img 
           src={product.ar_image} 
@@ -531,32 +641,22 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
             transform: 'scale(1.05)',
             mixBlendMode: 'multiply',
             filter: 'contrast(1.6) brightness(1.2) saturate(1.1)',
-            opacity: 0.95 // Excellent frame presence with maximum lens transparency
+            opacity: 0.95
           }}
         />
       );
     }
 
     if (styleType === 'rimless') {
-      // 1. Premium Rimless / Rodenstock Multigressiv style
       return (
         <svg viewBox="0 0 200 60" className="w-full h-auto drop-shadow-[0_6px_10px_rgba(0,0,0,0.3)]" fill="none" stroke={frameColor.hex} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          {/* Lenses with a very soft, elegant semi-transparent blue/purple AR coating reflection */}
           <path d="M 28 20 H 80 C 83 20 85 45 77 45 H 33 C 25 45 28 20 28 20 Z" className="fill-cyan-500/10 stroke-cyan-400/20" strokeWidth="1.5" />
           <path d="M 120 20 H 172 C 175 20 172 45 167 45 H 123 C 115 45 120 20 120 20 Z" className="fill-cyan-500/10 stroke-cyan-400/20" strokeWidth="1.5" />
-          
-          {/* Subtle rimless lens cut highlights */}
           <path d="M 33 22 Q 55 18 75 22" stroke="white" strokeWidth="1" className="opacity-70" />
           <path d="M 125 22 Q 145 18 165 22" stroke="white" strokeWidth="1" className="opacity-70" />
-          
-          {/* Minimalist nose bridge */}
           <path d="M 80 26 Q 100 18 120 26" stroke={frameColor.hex} strokeWidth="3.5" />
-          
-          {/* Elegant metallic temples */}
           <path d="M 28 24 L 5 21" stroke={frameColor.hex} strokeWidth="2.5" />
           <path d="M 172 24 L 195 21" stroke={frameColor.hex} strokeWidth="2.5" />
-          
-          {/* Premium gold/silver mount screws */}
           <circle cx="32" cy="24" r="1.5" fill={frameColor.hex} stroke="none" />
           <circle cx="76" cy="24" r="1.5" fill={frameColor.hex} stroke="none" />
           <circle cx="124" cy="24" r="1.5" fill={frameColor.hex} stroke="none" />
@@ -564,95 +664,60 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         </svg>
       );
     } else if (styleType === 'photochromic') {
-      // 2. High-end Clubmaster Acetate / Rodenstock ColorMatic Transition style
       return (
         <svg viewBox="0 0 200 60" className="w-full h-auto drop-shadow-[0_8px_12px_rgba(0,0,0,0.4)]" fill="none" stroke={frameColor.hex} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          {/* Photochromic Transition Lenses (amber/grey/purple phototransition gradient) */}
           <path d="M 25 18 H 85 Q 85 46 55 46 H 33 Q 25 46 25 18 Z" className="fill-amber-900/25 stroke-amber-600/15" strokeWidth="1.5" />
           <path d="M 115 18 H 175 Q 175 46 145 46 H 123 Q 115 46 115 18 Z" className="fill-amber-900/25 stroke-amber-600/15" strokeWidth="1.5" />
-          
-          {/* Fine gold lower rim */}
           <path d="M 25 22 C 25 48 85 48 85 22" stroke="#E5C158" strokeWidth="2" />
           <path d="M 115 22 C 115 48 175 48 175 22" stroke="#E5C158" strokeWidth="2" />
-          
-          {/* Thick browbar (acetate) */}
           <path d="M 20 16 H 88 C 88 16 88 23 80 23 H 28 C 20 23 20 16 20 16 Z" fill={frameColor.hex} stroke="none" />
           <path d="M 112 16 H 180 C 180 16 180 23 172 23 H 120 C 112 23 112 16 112 16 Z" fill={frameColor.hex} stroke="none" />
-          
-          {/* Bridge (Gold metal) */}
           <path d="M 88 20 Q 100 12 112 20" stroke="#E5C158" strokeWidth="4.5" />
-          
-          {/* Shiny rivets on browbar */}
           <circle cx="26" cy="19" r="1.2" fill="#E5C158" stroke="none" />
           <circle cx="174" cy="19" r="1.2" fill="#E5C158" stroke="none" />
-          
-          {/* Temples */}
           <path d="M 20 19 L 5 17" stroke={frameColor.hex} strokeWidth="4" />
           <path d="M 180 19 L 195 17" stroke={frameColor.hex} strokeWidth="4" />
         </svg>
       );
     } else if (styleType === 'rayban') {
-      // 3. Rectangular Fine Titanium / Ray-Ban Armazón Elegance
       return (
         <svg viewBox="0 0 200 60" className="w-full h-auto drop-shadow-[0_8px_12px_rgba(0,0,0,0.5)]" fill="none" stroke={frameColor.hex} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          {/* Clear Lenses with subtle reflection */}
           <rect x="25" y="17" width="60" height="30" rx="6" className="fill-slate-400/5 stroke-none" />
           <rect x="115" y="17" width="60" height="30" rx="6" className="fill-slate-400/5 stroke-none" />
           <path d="M 30 20 Q 55 17 80 20" stroke="white" strokeWidth="1" className="opacity-60" />
           <path d="M 120 20 Q 145 17 170 20" stroke="white" strokeWidth="1" className="opacity-60" />
-
-          {/* Thin, elegant rectangular titanium-black rims */}
           <rect x="23" y="15" width="64" height="34" rx="8" stroke={frameColor.hex} strokeWidth="3.5" />
           <rect x="113" y="15" width="64" height="34" rx="8" stroke={frameColor.hex} strokeWidth="3.5" />
-          
-          {/* High-quality nose bridge */}
           <path d="M 87 22 Q 100 13 113 22" stroke={frameColor.hex} strokeWidth="4.5" />
-          
-          {/* Tiny premium silver rivets */}
           <circle cx="28" cy="20" r="1.2" fill="#E5E4E2" stroke="none" />
           <circle cx="172" cy="20" r="1.2" fill="#E5E4E2" stroke="none" />
-
-          {/* Temples */}
           <path d="M 23 20 L 5 18" stroke={frameColor.hex} strokeWidth="3" />
           <path d="M 177 20 L 195 18" stroke={frameColor.hex} strokeWidth="3" />
         </svg>
       );
     } else if (styleType === 'sport') {
-      // 4. Aerodynamic Sporty Curved Wrap / Oakley Armazón Sport Pro
       return (
         <svg viewBox="0 0 200 60" className="w-full h-auto drop-shadow-[0_10px_16px_rgba(0,0,0,0.6)]" fill="none" stroke={frameColor.hex} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-          {/* Reflective Orange/Blue sport lens coating */}
           <path d="M 15 18 L 85 18 Q 100 23 115 18 L 185 18 Q 192 26 175 42 L 148 44 Q 133 32 100 32 Q 67 32 52 44 L 25 42 Q 8 26 15 18 Z" className="fill-orange-500/20 stroke-orange-400/20" strokeWidth="1" />
           <path d="M 30 20 Q 55 24 80 20" stroke="white" strokeWidth="1" className="opacity-70" />
           <path d="M 120 20 Q 145 24 170 20" stroke="white" strokeWidth="1" className="opacity-70" />
-          
-          {/* Thick sporty wrap frame */}
           <path d="M 15 18 L 85 18 Q 100 23 115 18 L 185 18 Q 192 26 175 42 L 148 44 Q 133 32 100 32 Q 67 32 52 44 L 25 42 Q 8 26 15 18 Z" stroke={frameColor.hex} strokeWidth="5.5" />
-          
-          {/* Nose grips */}
           <path d="M 90 32 L 95 38" stroke={frameColor.hex} strokeWidth="3.5" />
           <path d="M 110 32 L 105 38" stroke={frameColor.hex} strokeWidth="3.5" />
-
-          {/* Aggressive Oakley-style hinges */}
           <path d="M 15 18 L 3 24" stroke={frameColor.hex} strokeWidth="4.5" />
           <path d="M 185 18 L 197 24" stroke={frameColor.hex} strokeWidth="4.5" />
         </svg>
       );
     } else {
-      // 5. Classic Elegant Wayfarer (Fallback)
       return (
         <svg viewBox="0 0 200 65" className="w-full h-auto drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]" fill="none" stroke={frameColor.hex} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
           <path d="M 26 19 H 84 Q 84 45 55 45 H 36 Q 26 45 26 19 Z" className="fill-accent/8 stroke-none" />
           <path d="M 116 19 H 174 Q 174 45 145 45 H 126 Q 116 45 116 19 Z" className="fill-accent/8 stroke-none" />
-          
           <path d="M 23 16 H 86 C 86 16 88 48 55 48 H 36 C 14 48 23 16 23 16 Z" stroke={frameColor.hex} strokeWidth="6" />
           <path d="M 114 16 H 177 C 177 16 186 48 164 48 H 145 C 112 48 114 16 114 16 Z" stroke={frameColor.hex} strokeWidth="6" />
-          
           <path d="M 86 21 Q 100 13 114 21" stroke={frameColor.hex} strokeWidth="6" />
-          
           <ellipse cx="29" cy="22" rx="2.5" ry="1.5" className="fill-accent text-accent" strokeWidth="0" />
           <ellipse cx="171" cy="22" rx="2.5" ry="1.5" className="fill-accent text-accent" strokeWidth="0" />
-          
           <path d="M 23 18 L 10 16" stroke={frameColor.hex} strokeWidth="4.5" />
           <path d="M 177 18 L 190 16" stroke={frameColor.hex} strokeWidth="4.5" />
         </svg>
@@ -671,30 +736,31 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
         {/* Camera Feed Area */}
         <div 
           style={{ height: '60%', minHeight: '60%' }}
-          className="w-full md:!h-auto md:!min-h-0 md:flex-[1.5] bg-black relative overflow-hidden flex items-center justify-center flex-shrink-0"
+          className="w-full md:!h-auto md:!min-h-0 md:flex-[1.5] bg-black relative overflow-hidden flex-shrink-0"
         >
           {/* Floating Close Button for Mobile */}
           <button 
             onClick={onClose} 
-            className="absolute top-4 right-4 z-20 md:hidden p-2.5 bg-black/40 backdrop-blur-md text-white rounded-full hover:bg-black/60 transition-all border border-white/10"
+            className="absolute top-4 right-4 z-40 md:hidden p-2.5 bg-black/40 backdrop-blur-md text-white rounded-full hover:bg-black/60 transition-all border border-white/10 pointer-events-auto"
           >
             <X className="w-5 h-5" />
           </button>
+          
           {loadingModel && (
-            <div className="text-white text-center p-8 flex flex-col items-center gap-4">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-8 gap-4 bg-black z-30">
               <Loader2 className="w-12 h-12 animate-spin text-accent" />
               <p className="font-serif text-lg text-white">Iniciando Probador Virtual...</p>
-              <p className="text-xs text-white/50 max-w-[250px]">Cargando módulo de inteligencia artificial de Google MediaPipe</p>
+              <p className="text-xs text-white/50 max-w-[250px]">Cargando cámara, modelos 3D e IA de detección facial...</p>
             </div>
           )}
 
           {error && !loadingModel && (
-            <div className="text-white text-center p-8">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-8 bg-black z-30">
               <AlertCircle className="w-16 h-16 mx-auto mb-4 opacity-50 text-red-500" />
               <p className="font-serif text-xl max-w-md mx-auto text-white">{error}</p>
               <button 
                 onClick={onClose}
-                className="mt-6 bg-accent/20 border border-accent text-accent px-6 py-2 rounded-full hover:bg-accent hover:text-white transition-all text-sm font-semibold"
+                className="mt-6 bg-accent/20 border border-accent text-accent px-6 py-2 rounded-full hover:bg-accent hover:text-white transition-all text-sm font-semibold pointer-events-auto"
               >
                 Cerrar y volver
               </button>
@@ -711,7 +777,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                     ref={videoRef} 
                     autoPlay 
                     playsInline 
-                    webkitPlaysInline={true}
                     muted 
                     className="w-full h-full object-cover pointer-events-auto"
                   />
@@ -733,8 +798,8 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                   />
                 )}
 
-                {/* Dynamic AR Glasses Overlay (Using standard div to prevent Framer Motion from stripping the centering translation) */}
-                {glassesTransform.visible && (
+                {/* Dynamic AR Glasses Overlay */}
+                {useVectorModel && glassesTransform.visible && (
                   <div 
                     className="absolute pointer-events-none transition-all duration-75"
                     style={{
@@ -750,7 +815,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                 )}
               </div>
               
-              {/* Target Face Guide Overlay (Only shown when face is NOT detected) */}
+              {/* Target Face Guide Overlay */}
               {!faceDetected && (
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                   <div className="w-60 h-76 border-2 border-dashed border-white/20 rounded-[100px] flex items-center justify-center flex-col gap-2 bg-black/10 backdrop-blur-[0.5px]">
@@ -782,30 +847,39 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
             
             <div className="space-y-3 md:space-y-4">
               <div className="flex items-center gap-3 text-xs text-ink/80">
-                <div className={`w-2 h-2 rounded-full ${glassesTransform.visible ? 'bg-green-500 animate-pulse' : 'bg-yellow-500 animate-pulse'}`} />
-                <span>{glassesTransform.visible ? 'Rostro detectado' : 'Buscando rostro...'}</span>
+                <div className={`w-2 h-2 rounded-full ${faceDetected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500 animate-pulse'}`} />
+                <span>{faceDetected ? 'Rostro detectado' : 'Buscando rostro...'}</span>
               </div>
               <div className="flex items-center gap-3 text-xs text-ink/80">
                 <Maximize2 className="w-4 h-4 opacity-40" />
-                <span>Detección MediaPipe activa</span>
+                <span>Detección facial activa</span>
               </div>
+              {product.model_3d && (
+                <div className="flex items-center gap-3 text-xs text-ink/80">
+                  <div className={`w-2 h-2 rounded-full ${
+                    modelStatus === 'loaded' ? 'bg-green-500' :
+                    modelStatus === 'error' ? 'bg-red-500 animate-pulse' :
+                    'bg-yellow-500 animate-pulse'
+                  }`} />
+                  <span>
+                    {modelStatus === 'loading' && 'Cargando modelo 3D...'}
+                    {modelStatus === 'loaded' && 'Modelo 3D cargado'}
+                    {modelStatus === 'error' && 'Error al cargar modelo 3D'}
+                    {modelStatus === 'none' && 'Iniciando modelo 3D...'}
+                  </span>
+                </div>
+              )}
 
               {/* Source Selector (Camera / Photo) */}
               {!loadingModel && !error && (
                 <div className="pt-3 md:pt-4 border-t border-ink/5">
                   <span className="text-[11px] text-ink/60 font-semibold block mb-2">Fuente de Imagen</span>
-                  <div className="grid grid-cols-3 gap-2 bg-ink/5 p-1 rounded-xl">
+                  <div className="grid grid-cols-2 gap-2 bg-ink/5 p-1 rounded-xl">
                     <button
                       onClick={() => setCaptureMode('live')}
                       className={`py-1.5 text-xs font-bold rounded-lg transition-all ${captureMode === 'live' ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'}`}
                     >
                       En vivo
-                    </button>
-                    <button
-                      onClick={handleTakePhoto}
-                      className={`py-1.5 text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition-all text-ink/60 hover:text-ink`}
-                    >
-                      <Camera className="w-3 h-3" /> Foto
                     </button>
                     <button
                       onClick={() => fileInputRef.current?.click()}
@@ -815,34 +889,6 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                     </button>
                   </div>
                   <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                </div>
-              )}
-
-              {/* Try-On Mode Toggle Selector */}
-              {!loadingModel && !error && (product.ar_image || product.model_3d) && (
-                <div className="pt-3 md:pt-4 border-t border-ink/5">
-                  <span className="text-[11px] text-ink/60 font-semibold block mb-2">Modo del Probador</span>
-                  <div className="grid grid-cols-2 gap-2 bg-ink/5 p-1 rounded-xl">
-                    <button
-                      onClick={() => setUseVectorModel(true)}
-                      className={`py-1.5 text-xs font-bold rounded-lg transition-all ${useVectorModel ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'}`}
-                    >
-                      Modelo Digital
-                    </button>
-                    <button
-                      onClick={() => setUseVectorModel(false)}
-                      className={`py-1.5 text-xs font-bold rounded-lg transition-all ${!useVectorModel ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'}`}
-                    >
-                      {product.model_3d ? "Modelo 3D 🌐" : "Foto Real"}
-                    </button>
-                  </div>
-                  <p className="text-[9px] text-ink/40 mt-1">
-                    {useVectorModel 
-                      ? "Modelo vectorial premium 100% transparente y con cambio de color en tiempo real." 
-                      : product.model_3d 
-                        ? "Modelo 3D GLB interactivo ajustado a tu rostro en tiempo real. [v1.2 - Frente]"
-                        : "Foto real del catálogo con eliminación digital de fondo blanco."}
-                  </p>
                 </div>
               )}
 
@@ -1000,4 +1046,3 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
     </motion.div>
   );
 };
-

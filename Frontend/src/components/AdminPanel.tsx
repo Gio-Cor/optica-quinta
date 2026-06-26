@@ -24,9 +24,31 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
   // Products CRUD State
   const [isAddingProduct, setIsAddingProduct] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '', is_featured: false, discount_percent: 0 });
+  const [newProduct, setNewProduct] = useState<{
+    name: string;
+    brand: string;
+    price: number;
+    image: string;
+    description: string;
+    stock: number;
+    category: 'lente' | 'accesorio';
+    ar_image: string;
+    model_3d: string;
+    is_featured: boolean;
+    discount_percent: number;
+  }>({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '', is_featured: false, discount_percent: 0 });
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [editProductData, setEditProductData] = useState<Partial<Product>>({});
+
+  // File upload states
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [modelFile, setModelFile] = useState<File | null>(null);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editModelFile, setEditModelFile] = useState<File | null>(null);
+
+  // Migration states
+  const [migrationStatus, setMigrationStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+  const [migrationLog, setMigrationLog] = useState<string[]>([]);
 
   // Bulk actions state
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
@@ -81,31 +103,76 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
   const handleSaveProduct = async (id: number) => {
     try {
-      await api.updateProduct(id, editProductData);
+      let imageUrl = editProductData.image || '';
+      let modelUrl = editProductData.model_3d || '';
+
+      if (editImageFile) {
+        const fileExt = editImageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        imageUrl = await api.uploadFile('images', fileName, editImageFile);
+      }
+
+      if (editModelFile) {
+        const fileExt = editModelFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        modelUrl = await api.uploadFile('models', fileName, editModelFile);
+      }
+
+      await api.updateProduct(id, {
+        ...editProductData,
+        image: imageUrl,
+        model_3d: modelUrl
+      });
+
       setEditingProductId(null);
+      setEditImageFile(null);
+      setEditModelFile(null);
       refreshData();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Error al actualizar el producto');
+      alert('Error al actualizar el producto: ' + (error.message || error));
     }
   };
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.createProduct(newProduct);
+      let imageUrl = newProduct.image;
+      let modelUrl = newProduct.model_3d;
+
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        imageUrl = await api.uploadFile('images', fileName, imageFile);
+      }
+
+      if (modelFile) {
+        const fileExt = modelFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+        modelUrl = await api.uploadFile('models', fileName, modelFile);
+      }
+
+      await api.createProduct({
+        ...newProduct,
+        image: imageUrl,
+        model_3d: modelUrl
+      });
+
       refreshData();
       setIsAddingProduct(false);
       setNewProduct({ name: '', brand: '', price: 0, image: '', description: '', stock: 0, category: 'lente', ar_image: '', model_3d: '', is_featured: false, discount_percent: 0 });
+      setImageFile(null);
+      setModelFile(null);
     } catch (error: any) {
       console.error(error);
-      alert('Error al guardar el producto. Puede que la imagen sea demasiado grande o haya un problema de conexión.');
+      alert('Error al guardar el producto: ' + (error.message || error));
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setNewProduct({ ...newProduct, image: reader.result as string });
@@ -114,20 +181,10 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
     }
   };
 
-  const handleArFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewProduct({ ...newProduct, ar_image: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleModelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setModelFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setNewProduct({ ...newProduct, model_3d: reader.result as string });
@@ -139,6 +196,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setEditImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setEditProductData(prev => ({ ...prev, image: reader.result as string }));
@@ -147,25 +205,99 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
     }
   };
 
-  const handleEditArFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditProductData(prev => ({ ...prev, ar_image: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleEditModelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setEditModelFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setEditProductData(prev => ({ ...prev, model_3d: reader.result as string }));
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const runMigration = async () => {
+    if (!confirm('¿Deseas iniciar la migración de productos Base64 a Supabase Storage? Asegúrate de haber creado los buckets "images" y "models" con acceso público en Supabase.')) return;
+    setMigrationStatus('running');
+    setMigrationLog(['Iniciando migración...']);
+
+    try {
+      const currentProducts = await api.getProducts();
+      setMigrationLog(prev => [...prev, `Se encontraron ${currentProducts.length} productos en la base de datos.`]);
+
+      let migratedCount = 0;
+
+      for (let i = 0; i < currentProducts.length; i++) {
+        const product = currentProducts[i];
+        let updatedImage = product.image;
+        let updatedModel = product.model_3d;
+        let needsUpdate = false;
+
+        setMigrationLog(prev => [...prev, `[${i + 1}/${currentProducts.length}] Evaluando: ${product.name}...`]);
+
+        const dataURLtoFile = (dataurl: string, filename: string): File => {
+          const arr = dataurl.split(',');
+          const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          return new File([u8arr], filename, { type: mime });
+        };
+
+        if (product.image && product.image.startsWith('data:')) {
+          try {
+            setMigrationLog(prev => [...prev, `  - Migrando imagen...`]);
+            const fileExt = product.image.match(/data:image\/(.*?);/)?.[1] || 'png';
+            const filename = `migrated-${product.id}-${Date.now()}.${fileExt}`;
+            const file = dataURLtoFile(product.image, filename);
+            updatedImage = await api.uploadFile('images', filename, file);
+            needsUpdate = true;
+            setMigrationLog(prev => [...prev, `    ✓ Imagen subida a Storage.`]);
+          } catch (err: any) {
+            setMigrationLog(prev => [...prev, `    ❌ Error al subir imagen: ${err.message || err}`]);
+          }
+        }
+
+        if (product.model_3d && product.model_3d.startsWith('data:')) {
+          try {
+            setMigrationLog(prev => [...prev, `  - Migrando modelo 3D...`]);
+            const filename = `migrated-model-${product.id}-${Date.now()}.glb`;
+            const file = dataURLtoFile(product.model_3d, filename);
+            updatedModel = await api.uploadFile('models', filename, file);
+            needsUpdate = true;
+            setMigrationLog(prev => [...prev, `    ✓ Modelo 3D subido a Storage.`]);
+          } catch (err: any) {
+            setMigrationLog(prev => [...prev, `    ❌ Error al subir modelo: ${err.message || err}`]);
+          }
+        }
+
+        if (needsUpdate) {
+          try {
+            await api.updateProduct(product.id, {
+              image: updatedImage,
+              model_3d: updatedModel
+            });
+            migratedCount++;
+            setMigrationLog(prev => [...prev, `  ✓ Producto actualizado en base de datos.`]);
+          } catch (err: any) {
+            setMigrationLog(prev => [...prev, `  ❌ Error guardando URLs en base de datos: ${err.message || err}`]);
+          }
+        } else {
+          setMigrationLog(prev => [...prev, `  - Ya usa URLs (no requiere migración).`]);
+        }
+      }
+
+      setMigrationStatus('success');
+      setMigrationLog(prev => [...prev, `¡Migración finalizada! Se actualizaron ${migratedCount} productos con éxito.`]);
+      refreshData();
+    } catch (error: any) {
+      console.error(error);
+      setMigrationStatus('error');
+      setMigrationLog(prev => [...prev, `❌ Error crítico: ${error.message || error}`]);
     }
   };
 
@@ -307,8 +439,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
             <button
               onClick={() => setView('dashboard')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'dashboard'
-                  ? 'bg-ink text-white shadow-md'
-                  : 'text-ink/60 hover:text-ink hover:bg-ink/5'
+                ? 'bg-ink text-white shadow-md'
+                : 'text-ink/60 hover:text-ink hover:bg-ink/5'
                 }`}
             >
               <LayoutDashboard className="w-5 h-5" />
@@ -317,8 +449,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
             <button
               onClick={() => setView('products')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'products' || view === 'lens_options'
-                  ? 'bg-ink text-white shadow-md'
-                  : 'text-ink/60 hover:text-ink hover:bg-ink/5'
+                ? 'bg-ink text-white shadow-md'
+                : 'text-ink/60 hover:text-ink hover:bg-ink/5'
                 }`}
             >
               <Package className="w-5 h-5" />
@@ -327,8 +459,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
             <button
               onClick={() => setView('appointments')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'appointments'
-                  ? 'bg-ink text-white shadow-md'
-                  : 'text-ink/60 hover:text-ink hover:bg-ink/5'
+                ? 'bg-ink text-white shadow-md'
+                : 'text-ink/60 hover:text-ink hover:bg-ink/5'
                 }`}
             >
               <Users className="w-5 h-5" />
@@ -337,8 +469,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
             <button
               onClick={() => setView('reports')}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${view === 'reports'
-                  ? 'bg-ink text-white shadow-md'
-                  : 'text-ink/60 hover:text-ink hover:bg-ink/5'
+                ? 'bg-ink text-white shadow-md'
+                : 'text-ink/60 hover:text-ink hover:bg-ink/5'
                 }`}
             >
               <BarChart3 className="w-5 h-5" />
@@ -631,15 +763,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                           </div>
                         )}
                       </div>
-                      <div>
-                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Foto Modelo Probador Virtual (PNG Transparente)</label>
-                        <input type="file" accept="image/png,image/webp" onChange={handleArFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                        {newProduct.ar_image && (
-                          <div className="mt-3">
-                            <img src={newProduct.ar_image} alt="Vista previa probador" className="h-16 rounded-lg object-contain border border-ink/10 shadow-sm bg-slate-100 p-1" />
-                          </div>
-                        )}
-                      </div>
+
                       <div>
                         <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Modelo 3D Anteojos (Archivo .GLB)</label>
                         <input type="file" accept=".glb" onChange={handleModelFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
@@ -703,14 +827,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                                 </div>
 
                                 <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
-                                  <span className="text-[10px] font-bold text-ink/40 uppercase">Foto Modelo AR (PNG)</span>
-                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.ar_image || ''} onChange={e => setEditProductData({ ...editProductData, ar_image: e.target.value })} placeholder="URL Foto Modelo (PNG Transparente)" />
-                                  <input type="file" accept="image/png,image/webp" onChange={handleEditArFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                                </div>
-
-                                <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
                                   <span className="text-[10px] font-bold text-ink/40 uppercase">Modelo 3D (GLB)</span>
-                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.model_3d || ''} onChange={e => setEditProductData({ ...editProductData, model_3d: e.target.value })} placeholder="URL Modelo 3D (GLB o Base64)" />
+                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.model_3d || ''} onChange={e => setEditProductData({ ...editProductData, model_3d: e.target.value })} placeholder="URL Modelo 3D (Archivo .GLB)" />
                                   <input type="file" accept=".glb" onChange={handleEditModelFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
                                 </div>
                               </td>
@@ -917,6 +1035,56 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                   <span>Descargar PDF de Ventas del Mes</span>
                 </button>
+              </div>
+
+              {/* Migration Tool Card */}
+              <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-ink/5 p-10 text-center max-w-2xl mx-auto mt-8">
+                <div className="w-16 h-16 bg-accent/5 rounded-2xl flex items-center justify-center mx-auto mb-6 text-accent">
+                  <RefreshCw className={`w-8 h-8 ${migrationStatus === 'running' ? 'animate-spin' : ''}`} />
+                </div>
+                <h3 className="text-2xl font-serif text-ink mb-4 font-bold">Herramienta de Migración de Archivos</h3>
+                <p className="text-ink/60 mb-6 text-sm max-w-md mx-auto leading-relaxed">
+                </p>
+
+                {migrationStatus === 'idle' && (
+                  <button
+                    onClick={runMigration}
+                    className="bg-ink text-white px-10 py-4 rounded-full font-bold shadow-lg hover:bg-accent hover:scale-105 transition-all text-sm flex items-center justify-center gap-3 mx-auto"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                    <span>Iniciar Migración a Storage</span>
+                  </button>
+                )}
+
+                {migrationStatus === 'running' && (
+                  <div className="inline-flex items-center gap-2 bg-yellow-50 text-yellow-700 px-6 py-3 rounded-full text-sm font-bold border border-yellow-200">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Migración en curso... No cierres esta ventana</span>
+                  </div>
+                )}
+
+                {migrationStatus === 'success' && (
+                  <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-6 py-3 rounded-full text-sm font-bold border border-green-200">
+                    <Check className="w-4 h-4" />
+                    <span>¡Migración completada con éxito!</span>
+                  </div>
+                )}
+
+                {migrationStatus === 'error' && (
+                  <div className="inline-flex items-center gap-2 bg-red-50 text-red-700 px-6 py-3 rounded-full text-sm font-bold border border-red-200">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Ocurrió un error al migrar los archivos</span>
+                  </div>
+                )}
+
+                {migrationLog.length > 0 && (
+                  <div className="mt-8 text-left bg-slate-50 border border-ink/5 p-4 rounded-2xl max-h-48 overflow-y-auto font-mono text-xs text-ink/70">
+                    <div className="font-bold text-ink mb-2 uppercase tracking-wider text-[10px]">Registro de Actividad:</div>
+                    {migrationLog.map((log, index) => (
+                      <div key={index} className="py-0.5 border-b border-ink/5 last:border-0">{log}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           )}

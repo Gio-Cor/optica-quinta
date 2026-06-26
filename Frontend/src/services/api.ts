@@ -227,4 +227,14 @@ export const api = {
       }
     }
   },
+
+  uploadFile: async (bucket: string, path: string, file: File): Promise<string> => {
+    const { data, error } = await supabase.storage.from(bucket).upload(path, file, {
+      cacheControl: '3600',
+      upsert: true
+    });
+    if (error) throw new Error(error.message);
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+    return publicUrl;
+  },
 };
