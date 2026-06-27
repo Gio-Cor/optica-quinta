@@ -24,7 +24,7 @@ describe('Chatbot Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  // Test 7: Abre y cierra la ventana de conversación del chatbot
+  // Verifica la apertura y cierre del panel de chat al interactuar con el botón flotante
   it('debe abrir y cerrar la ventana del chat al presionar el botón flotante', async () => {
     render(<Chatbot />);
     // Al inicio, no debe mostrarse el mensaje de bienvenida
@@ -40,7 +40,7 @@ describe('Chatbot Component', () => {
     // El panel debe cerrarse
     expect(screen.queryByText('¡Hola! Bienvenido a Óptica Quinta. ¿En qué puedo asesorarte hoy?')).not.toBeInTheDocument();
   });
-  // Test 8: Envío de mensaje y renderizado de respuesta del bot
+  // Comprueba que los mensajes del usuario se muestren y la IA responda adecuadamente
   it('debe mostrar el mensaje del usuario y la respuesta del bot al enviar una consulta', async () => {
     vi.mocked(chatWithGithubModels).mockResolvedValue('Respuesta del optometrista virtual mockeado.');
     render(<Chatbot />);

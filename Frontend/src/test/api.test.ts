@@ -44,7 +44,7 @@ describe('api service', () => {
     thenMock.mockImplementation((resolve) => resolve({ data: null, error: null }));
   });
 
-  // Test 1: loginUser (exitoso y fallido)
+  // Pruebas del método loginUser en escenarios exitosos y con fallos de autenticación
   it('loginUser: debe retornar token y perfil de usuario si es exitoso o lanzar error si falla', async () => {
     // Caso Exitoso
     vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
@@ -86,7 +86,7 @@ describe('api service', () => {
     await expect(api.loginUser('test@example.com', 'wrongpassword')).rejects.toThrow('Credenciales inválidas');
   });
 
-  // Test 2: registerUser exitoso
+  // Verifica el registro correcto de nuevos usuarios en auth y perfil
   it('registerUser: debe registrar en auth y crear perfil en la tabla de users', async () => {
     vi.mocked(supabase.auth.signUp).mockResolvedValue({
       data: {
@@ -108,7 +108,7 @@ describe('api service', () => {
     expect(result.user.id).toBe('new-auth-123');
   });
 
-  // Test 3: Operaciones CRUD de productos (createProduct, getProducts, deleteProduct)
+  // Valida las operaciones básicas de creación, obtención y eliminación del catálogo
   it('Productos CRUD: debe permitir crear, listar y eliminar productos del catálogo', async () => {
     // 3.1: createProduct
     const newProduct = {

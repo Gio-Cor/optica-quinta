@@ -23,7 +23,7 @@ describe('githubChat service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  // Test 4: chatWithGithubModels — respuesta exitosa y manejo de error 429
+  // Comprueba que chatWithGithubModels retorne la respuesta correcta o maneje el error 429 con un mensaje amigable
   it('chatWithGithubModels: debe retornar la respuesta del modelo o manejar el error 429 con un mensaje amigable', async () => {
     // Caso Exitoso
     mockCreate.mockResolvedValue({

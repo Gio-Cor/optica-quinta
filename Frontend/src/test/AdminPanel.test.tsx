@@ -39,14 +39,14 @@ describe('AdminPanel Component', () => {
     vi.mocked(api.getLensOptions).mockResolvedValue([]);
     vi.mocked(api.getWorkOrders).mockResolvedValue([]);
   });
-  // Test 13: Acceso denegado para usuarios sin rol de admin
+  // Verifica la restricción de acceso para usuarios sin privilegios de administrador
   it('debe mostrar "Acceso Denegado" y el botón de cerrar sesión cuando el usuario no es admin', () => {
     render(<AdminPanel loggedInUser={regularUser} onLogout={mockOnLogout} />);
     expect(screen.getByText('Acceso Denegado')).toBeInTheDocument();
     expect(screen.getByText(/No tienes permisos de administrador/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cerrar Sesión' })).toBeInTheDocument();
   });
-  // Test 14: Dashboard accesible para el administrador con estadísticas clave
+  // Comprueba que el panel principal muestra métricas clave al ingresar como administrador
   it('debe mostrar el Dashboard General con las tarjetas de estadísticas para un administrador', async () => {
     render(<AdminPanel loggedInUser={adminUser} onLogout={mockOnLogout} />);
     await waitFor(() => {
@@ -59,7 +59,7 @@ describe('AdminPanel Component', () => {
     expect(screen.getByText('Total Productos')).toBeInTheDocument();
     expect(screen.getByText('Stock Crítico')).toBeInTheDocument();
   });
-  // Test 15: Navegación a Inventario y visualización del catálogo de productos
+  // Verifica que se puede navegar a la pestaña de inventario y se lista el catálogo de productos
   it('debe navegar a la vista de Inventario y mostrar la tabla del catálogo al hacer clic en "Inventario"', async () => {
     const mockProducts = [
       { id: 1, name: 'Lente Aviador Premium', brand: 'Oakley', price: 75000, stock: 8, category: 'lente' as const, image: '', description: '', model_3d: '' },

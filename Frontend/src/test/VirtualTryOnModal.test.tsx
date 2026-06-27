@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
-// Mock de motion/react para evitar errores de animación en JSDOM
+
+// Evita errores de animación en JSDOM mockeando la librería motion
 vi.mock('motion/react', () => ({
   motion: {
     div: React.forwardRef(({ children, ...props }: any, ref: any) => (
@@ -11,16 +12,103 @@ vi.mock('motion/react', () => ({
   },
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
-// Mock de navigator.mediaDevices para simular la cámara
-const mockGetUserMedia = vi.fn().mockRejectedValue(
-  Object.assign(new Error('Permiso denegado'), { name: 'NotAllowedError' })
-);
+
+// Mockea el SDK de MediaPipe Tasks Vision para evitar descargas de WASM en los tests
+vi.mock('@mediapipe/tasks-vision', () => {
+  return {
+    FilesetResolver: {
+      forVisionTasks: vi.fn().mockResolvedValue({}),
+    },
+    FaceLandmarker: {
+      createFromOptions: vi.fn().mockResolvedValue({
+        detectForVideo: vi.fn().mockReturnValue({ facialTransformationMatrixes: [] }),
+        close: vi.fn(),
+      }),
+    },
+  };
+});
+
+// Mockea Three.js y sus dependencias WebGL/Loaders
+vi.mock('three', () => {
+  const dummyGroup = {
+    add: vi.fn(),
+    position: { set: vi.fn() },
+    rotation: { set: vi.fn() },
+    scale: { set: vi.fn() },
+    visible: true,
+    matrixAutoUpdate: true,
+    matrix: { copy: vi.fn() },
+  };
+  return {
+    Scene: class {
+      add = vi.fn();
+      traverse = vi.fn();
+    },
+    PerspectiveCamera: class {
+      position = { set: vi.fn() };
+      lookAt = vi.fn();
+    },
+    WebGLRenderer: class {
+      setSize = vi.fn();
+      setPixelRatio = vi.fn();
+      render = vi.fn();
+      dispose = vi.fn();
+    },
+    AmbientLight: class {},
+    DirectionalLight: class {
+      position = { set: vi.fn() };
+    },
+    Group: vi.fn().mockImplementation(() => dummyGroup),
+    Box3: class {
+      setFromObject = vi.fn();
+      getCenter = vi.fn();
+      getSize = vi.fn();
+    },
+    Vector3: class {
+      copy = vi.fn().mockReturnThis();
+      multiplyScalar = vi.fn().mockReturnThis();
+      set = vi.fn();
+    },
+    Matrix4: class {
+      fromArray = vi.fn();
+      copy = vi.fn();
+    },
+  };
+});
+
+vi.mock('three/examples/jsm/loaders/GLTFLoader.js', () => {
+  return {
+    GLTFLoader: class {
+      load = vi.fn();
+      parse = vi.fn();
+      setDRACOLoader = vi.fn();
+    },
+  };
+});
+
+vi.mock('three/examples/jsm/loaders/DRACOLoader.js', () => {
+  return {
+    DRACOLoader: class {
+      setDecoderPath = vi.fn();
+    },
+  };
+});
+
+// Mockea HTMLVideoElement.prototype.play en JSDOM ya que no retorna una Promesa por defecto en este entorno
+Object.defineProperty(HTMLVideoElement.prototype, 'play', {
+  writable: true,
+  value: vi.fn().mockResolvedValue(undefined),
+});
+
+// Mock de la cámara de usuario por defecto
+const mockGetUserMedia = vi.fn();
 Object.defineProperty(navigator, 'mediaDevices', {
   writable: true,
   value: { getUserMedia: mockGetUserMedia },
 });
+
 const mockProduct = {
-  id: 5,
+  id: 10,
   name: 'Lente Elegance Titanio',
   brand: 'Rodenstock',
   price: 120000,
@@ -29,40 +117,119 @@ const mockProduct = {
   model_3d: '',
   category: 'lente' as const,
 };
+
 describe('VirtualTryOnModal Component', () => {
   const mockOnClose = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // Por defecto la cámara falla para simular el caso de fallback automático
     mockGetUserMedia.mockRejectedValue(
       Object.assign(new Error('Permiso denegado'), { name: 'NotAllowedError' })
     );
   });
-  // Test 11: Carga de datos del producto y botón de cierre
+
+  // Helper para simular un estado en que la cámara y el modelo cargaron correctamente
+  const renderInSuccessState = async (product = mockProduct) => {
+    const mockStream = {
+      getTracks: () => [{ stop: vi.fn() }],
+    };
+    mockGetUserMedia.mockResolvedValue(mockStream);
+    const view = render(<VirtualTryOnModal product={product} onClose={mockOnClose} />);
+    
+    // Esperamos a que termine el estado de carga inicial
+    await waitFor(() => {
+      expect(screen.queryByText(/Iniciando Probador/i)).not.toBeInTheDocument();
+    });
+    
+    // Verificamos que no se muestre el error de cámara
+    expect(screen.queryByText(/Error Probador/i)).not.toBeInTheDocument();
+    return view;
+  };
+
+  // Valida que el nombre y marca del producto se muestren y que los botones de cerrar invoquen onClose
   it('debe mostrar la marca y el nombre del producto cargado y permitir cerrarlo con el botón X', async () => {
     render(<VirtualTryOnModal product={mockProduct} onClose={mockOnClose} />);
-    // Debe mostrar la marca del producto (el componente la renderiza tal como viene del objeto)
+
     expect(screen.getByText('Rodenstock')).toBeInTheDocument();
-    // Debe mostrar el nombre del producto
     expect(screen.getByText('Lente Elegance Titanio')).toBeInTheDocument();
-    // El modal tiene 3 botones en estado de carga:
-    //   [0] X del mobile (zona de cámara)
-    //   [1] X del panel de información (desktop)
-    //   [2] "Agregar al Carrito"
+
+    // Simula clic en el botón de cerrar del panel derecho
     const closeButtons = screen.getAllByRole('button');
     fireEvent.click(closeButtons[1]);
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
-  // Test 12: Renderizado de controles de captura (En vivo / Subir)
-  it('debe renderizar los botones de fuente de imagen (En vivo, Subir) tras superar la carga inicial', async () => {
-    render(<VirtualTryOnModal product={mockProduct} onClose={mockOnClose} />);
-    // Durante la carga debe mostrar el spinner de inicio
-    // Cuando la cámara falla, mostrará un error. Verificamos que ambos casos muestran texto relevante.
-    // El texto "Iniciando Probador Virtual..." aparece si hay carga, o el error si falla la cámara.
-    const loadingOrErrorText = screen.queryByText(/Iniciando Probador Virtual|Error Probador|NotAllowedError/i);
-    // Se espera encontrar alguno de estos estados
-    expect(loadingOrErrorText || screen.queryByText('En vivo') || true).toBeTruthy();
-    // El panel de información (columna derecha) debe estar siempre visible
+
+  // Asegura que los controles básicos del probador se renderizan tras la carga
+  it('debe renderizar los controles del probador tras superar el estado de carga inicial', async () => {
+    await renderInSuccessState();
+
     expect(screen.getByText('Lente Elegance Titanio')).toBeInTheDocument();
     expect(screen.getByText(/Detección facial activa/i)).toBeInTheDocument();
+    expect(screen.getByText('En vivo')).toBeInTheDocument();
+  });
+
+  // Verifica que se infieran los estilos correctos de marcos según el nombre del producto
+  it('debe asignar la paleta de colores de estilo rimless para un producto multigressiv', async () => {
+    const rimlessProduct = { ...mockProduct, name: 'Lente Multigressiv Rodenstock' };
+    await renderInSuccessState(rimlessProduct);
+    
+    // El estilo rimless debe incluir la opción "Oro Fino"
+    expect(screen.getByTitle('Oro Fino')).toBeInTheDocument();
+  });
+
+  // Verifica que se infieran los estilos correctos de marcos deportivos
+  it('debe asignar la paleta de colores de estilo sport para un producto oakley o sport', async () => {
+    const sportProduct = { ...mockProduct, name: 'Lente Oakley Sport' };
+    await renderInSuccessState(sportProduct);
+    
+    // El estilo deportivo debe incluir la opción "Carbón Mate"
+    expect(screen.getByTitle('Carbón Mate')).toBeInTheDocument();
+  });
+
+  // Comprueba que al presionar un botón de color se actualice el texto indicativo del color seleccionado
+  it('debe permitir cambiar el color del marco seleccionado', async () => {
+    await renderInSuccessState();
+
+    // Por defecto el primer color para 'rayban' es 'Negro Titanio'
+    expect(screen.getByText(/Color del Marco:/)).toHaveTextContent('Negro Titanio');
+
+    // Cambia al segundo color (Plata Satinado)
+    const colorBtn = screen.getByTitle('Plata Satinado');
+    fireEvent.click(colorBtn);
+
+    expect(screen.getByText(/Color del Marco:/)).toHaveTextContent('Plata Satinado');
+  });
+
+  // Valida que el cambio en el control deslizante actualice el porcentaje de escala en la interfaz
+  it('debe actualizar la escala del lente al deslizar la barra de tamaño', async () => {
+    await renderInSuccessState();
+
+    const slider = screen.getByRole('slider');
+    // Por defecto la escala inicial es 1.95 (representada como 98%)
+    expect(screen.getByText('98%')).toBeInTheDocument();
+
+    // Simula cambio del slider a un valor menor (1.50 -> 75%)
+    fireEvent.change(slider, { target: { value: '1.50' } });
+    expect(screen.getByText('75%')).toBeInTheDocument();
+  });
+
+  // Comprueba la transición al flujo de subida de imagen cuando se simula una subida de archivo
+  it('debe cambiar de fuente de captura cuando se simula una subida de archivo', async () => {
+    await renderInSuccessState();
+
+    // Buscamos el input de tipo archivo
+    const fileInput = document.querySelector('input[type="file"]');
+    expect(fileInput).toBeInTheDocument();
+
+    // Crea un archivo simulado para subir
+    const file = new File(['dummy content'], 'test-face.png', { type: 'image/png' });
+    
+    fireEvent.change(fileInput!, { target: { files: [file] } });
+
+    // La subida gatilla el cambio a modo foto con el botón 'Subir' activo (estilo blanco)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Subir/i })).toHaveClass('bg-white');
+    });
   });
 });

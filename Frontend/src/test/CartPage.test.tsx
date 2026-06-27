@@ -38,7 +38,7 @@ describe('CartPage Component', () => {
       },
     },
   ];
-  // Test 9: Render del carrito vacío
+  // Verifica la interfaz mostrada cuando el carrito de compras no tiene elementos
   it('debe mostrar la pantalla de carrito vacío con botón para volver al catálogo', () => {
     render(
       <CartPage
@@ -53,7 +53,7 @@ describe('CartPage Component', () => {
     expect(screen.getByText('Su carrito está vacío')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Volver al catálogo' })).toBeInTheDocument();
   });
-  // Test 10: Render de productos en el carrito y cálculo correcto de totales con promociones
+  // Comprueba que los productos se listen en el carrito y se aplique correctamente el cálculo de promociones vigentes
   it('debe listar los productos del carrito y calcular correctamente el total con la promoción vigente', () => {
     render(
       <CartPage

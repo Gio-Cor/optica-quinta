@@ -17,7 +17,7 @@ describe('AuthForm Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  // Test 5: Render inicial en modo Login y alternancia al modo Registro
+  // Valida que el formulario inicie en modo login y permita alternar a registro
   it('debe renderizar el formulario en modo login y alternar al modo de registro y viceversa', () => {
     render(<AuthForm onLogin={mockOnLogin} />);
     // Estado inicial: Login
@@ -35,7 +35,7 @@ describe('AuthForm Component', () => {
     fireEvent.click(toggleBack);
     expect(screen.getByRole('heading', { name: 'Iniciar Sesión' })).toBeInTheDocument();
   });
-  // Test 6: Envío del formulario de Login con credenciales válidas
+  // Asegura que al proveer credenciales válidas se llame a la API y se devuelvan los datos del usuario
   it('debe llamar a api.loginUser y al callback onLogin al enviar credenciales válidas', async () => {
     const mockUserData = {
       id: 'auth-123',
