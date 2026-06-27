@@ -720,7 +720,10 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                 <div className="p-6 border-b border-ink/5 flex justify-between items-center bg-white">
                   <h3 className="text-lg font-bold text-ink">Catálogo de Artículos</h3>
                   <button
-                    onClick={() => setIsAddingProduct(!isAddingProduct)}
+                    onClick={() => {
+                      setIsAddingProduct(!isAddingProduct);
+                      setEditingProductId(null);
+                    }}
                     className="bg-ink text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-md hover:bg-accent transition-colors flex items-center gap-1.5"
                   >
                     {isAddingProduct ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -794,6 +797,103 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                   </div>
                 )}
 
+                {editingProductId !== null && (
+                  <div className="p-6 bg-amber-50/20 border-b border-amber-200/50">
+                    <div className="flex justify-between items-center mb-6">
+                      <h4 className="font-bold text-ink text-sm uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        Editar Producto: <span className="font-serif normal-case italic text-base text-ink/80">{products.find(p => p.id === editingProductId)?.name || editProductData.name}</span>
+                      </h4>
+                      <button
+                        onClick={() => {
+                          setEditingProductId(null);
+                          setEditImageFile(null);
+                          setEditModelFile(null);
+                        }}
+                        className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors flex items-center gap-1 border border-red-200 hover:border-red-300 bg-red-50/50 px-3.5 py-1.5 rounded-full"
+                      >
+                        <X className="w-4 h-4" /> Cancelar Edición
+                      </button>
+                    </div>
+
+                    <form onSubmit={(e) => { e.preventDefault(); handleSaveProduct(editingProductId!); }} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Nombre</label>
+                        <input required value={editProductData.name || ''} onChange={e => setEditProductData({ ...editProductData, name: e.target.value })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" placeholder="Ej: Lentes Aviador" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Marca</label>
+                        <input required value={editProductData.brand || ''} onChange={e => setEditProductData({ ...editProductData, brand: e.target.value })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" placeholder="Ej: Ray-Ban" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Precio ($)</label>
+                        <input required type="number" value={editProductData.price || 0} onChange={e => setEditProductData({ ...editProductData, price: Number(e.target.value) })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Stock</label>
+                        <input required type="number" value={editProductData.stock ?? 0} onChange={e => setEditProductData({ ...editProductData, stock: Number(e.target.value) })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Categoría</label>
+                        <select required value={editProductData.category || 'lente'} onChange={e => setEditProductData({ ...editProductData, category: e.target.value as 'lente' | 'accesorio' })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white">
+                          <option value="lente">Lente</option>
+                          <option value="accesorio">Accesorio</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">% Descuento</label>
+                        <input type="number" min="0" max="100" value={editProductData.discount_percent || 0} onChange={e => setEditProductData({ ...editProductData, discount_percent: Number(e.target.value) })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white" />
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Descripción</label>
+                        <textarea required value={editProductData.description || ''} onChange={e => setEditProductData({ ...editProductData, description: e.target.value })} className="w-full border border-ink/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-ink/30 bg-white min-h-[80px]" placeholder="Breve descripción del producto..." />
+                      </div>
+                      <div className="flex items-center h-full md:pt-6">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-ink">
+                          <input type="checkbox" checked={editProductData.is_featured || false} onChange={e => setEditProductData({ ...editProductData, is_featured: e.target.checked })} className="w-5 h-5 rounded border-ink/20 text-accent focus:ring-accent" />
+                          Producto Destacado
+                        </label>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Imagen del Producto (Catálogo)</label>
+                        <input type="file" accept="image/*" onChange={handleEditFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
+                        {editProductData.image && (
+                          <div className="mt-3 flex items-center gap-2 bg-white p-2 rounded-xl border border-ink/5 w-fit">
+                            <img src={editProductData.image} alt="Vista previa" className="h-16 w-16 rounded-lg object-cover border border-ink/10 shadow-sm" />
+                            <span className="text-[10px] text-ink/40 font-mono break-all max-w-[200px]">{editProductData.image.startsWith('data:') ? 'Imagen Cargada (Base64)' : editProductData.image}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-widest text-ink/60 mb-2 block">Modelo 3D Anteojos (Archivo .GLB)</label>
+                        <input type="file" accept=".glb" onChange={handleEditModelFileChange} className="w-full border border-ink/10 rounded-lg p-2 text-xs file:mr-4 file:py-1.5 file:px-3.5 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
+                        {editProductData.model_3d && (
+                          <div className="mt-3 text-xs text-green-600 font-bold flex items-center gap-1.5 bg-green-50 p-2 rounded-xl border border-green-100 w-fit">
+                            <span>✓ Modelo 3D cargado</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="col-span-full flex justify-end gap-3 mt-4 pt-4 border-t border-ink/5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingProductId(null);
+                            setEditImageFile(null);
+                            setEditModelFile(null);
+                          }}
+                          className="border border-ink/10 text-ink px-6 py-3 rounded-full font-bold text-sm hover:bg-ink/5 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button type="submit" className="bg-ink text-white px-8 py-3 rounded-full font-bold text-sm shadow-lg hover:bg-accent transition-colors flex items-center gap-2">
+                          <Save className="w-4 h-4" /> Guardar Cambios
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
@@ -820,67 +920,8 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                       ) : filteredProducts.map(p => {
                         const isEditing = editingProductId === p.id;
 
-                        if (isEditing) {
-                          return (
-                            <tr key={p.id} className="bg-slate-50 text-sm">
-                              <td className="px-6 py-4 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedProductIds.includes(p.id)}
-                                  onChange={() => toggleProductSelection(p.id)}
-                                  className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
-                                />
-                              </td>
-                              <td className="px-6 py-4 flex flex-col gap-3 min-w-[280px]">
-                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white font-semibold" value={editProductData.name || ''} onChange={e => setEditProductData({ ...editProductData, name: e.target.value })} placeholder="Nombre" />
-                                <textarea className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm" value={editProductData.description || ''} onChange={e => setEditProductData({ ...editProductData, description: e.target.value })} placeholder="Descripción" rows={2} />
-
-                                <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
-                                  <span className="text-[10px] font-bold text-ink/40 uppercase">Imagen Catálogo</span>
-                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.image || ''} onChange={e => setEditProductData({ ...editProductData, image: e.target.value })} placeholder="URL Imagen Catálogo" />
-                                  <input type="file" accept="image/*" onChange={handleEditFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                                </div>
-
-                                <div className="flex flex-col gap-1 border-t border-ink/5 pt-2">
-                                  <span className="text-[10px] font-bold text-ink/40 uppercase">Modelo 3D (GLB)</span>
-                                  <input className="w-full border border-ink/10 p-1.5 rounded-lg text-[10px] bg-white mb-1" value={editProductData.model_3d || ''} onChange={e => setEditProductData({ ...editProductData, model_3d: e.target.value })} placeholder="URL Modelo 3D (Archivo .GLB)" />
-                                  <input type="file" accept=".glb" onChange={handleEditModelFileChange} className="text-xs file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-ink/5 file:text-ink hover:file:bg-ink/10 cursor-pointer" />
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white" value={editProductData.brand || ''} onChange={e => setEditProductData({ ...editProductData, brand: e.target.value })} placeholder="Marca" />
-                              </td>
-                              <td className="px-6 py-4">
-                                <select className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm mb-2" value={editProductData.category || 'lente'} onChange={e => setEditProductData({ ...editProductData, category: e.target.value as 'lente' | 'accesorio' })}>
-                                  <option value="lente">Lente</option>
-                                  <option value="accesorio">Accesorio</option>
-                                </select>
-                                <input className="w-full border border-ink/10 p-2 rounded-lg bg-white text-sm mb-2" type="number" min="0" max="100" value={editProductData.discount_percent || 0} onChange={e => setEditProductData({ ...editProductData, discount_percent: Number(e.target.value) })} placeholder="% Desc." />
-                                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-ink/70">
-                                  <input type="checkbox" checked={editProductData.is_featured || false} onChange={e => setEditProductData({ ...editProductData, is_featured: e.target.checked })} className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent" />
-                                  Destacar
-                                </label>
-                              </td>
-                              <td className="px-6 py-4">
-                                <input className="w-full border border-ink/10 p-2 rounded-lg text-center w-20 bg-white" type="number" value={editProductData.stock ?? 0} onChange={e => setEditProductData({ ...editProductData, stock: Number(e.target.value) })} placeholder="Stock" />
-                              </td>
-                              <td className="px-6 py-4">
-                                <input className="w-full border border-ink/10 p-2 rounded-lg w-24 bg-white" type="number" value={editProductData.price || 0} onChange={e => setEditProductData({ ...editProductData, price: Number(e.target.value) })} placeholder="Precio" />
-                              </td>
-                              <td className="px-6 py-4 text-right flex gap-2 justify-end">
-                                <button onClick={() => handleSaveProduct(p.id)} className="p-2 text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-sm">
-                                  <Save className="w-5 h-5" />
-                                </button>
-                                <button onClick={() => setEditingProductId(null)} className="p-2 text-ink/50 hover:bg-ink/10 rounded-lg">
-                                  <X className="w-5 h-5" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        }
-
                         return (
-                          <tr key={p.id} className="hover:bg-slate-50/50 transition-all">
+                          <tr key={p.id} className={`transition-all ${isEditing ? 'bg-amber-50 border-l-4 border-l-amber-500' : 'hover:bg-slate-50/50'}`}>
                             <td className="px-6 py-4 text-center">
                               <input
                                 type="checkbox"
@@ -889,12 +930,21 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                                 className="w-4 h-4 rounded border-ink/20 text-accent focus:ring-accent cursor-pointer"
                               />
                             </td>
-                            <td className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                              <div className="relative">
-                                <img src={p.image} className="w-12 h-12 rounded-xl object-cover border border-ink/5" />
-                                {p.is_featured && <span className="absolute -top-2 -right-2 bg-accent text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">⭐</span>}
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                <div className="relative flex-shrink-0">
+                                  <img src={p.image} className="w-12 h-12 rounded-xl object-cover border border-ink/5" />
+                                  {p.is_featured && <span className="absolute -top-2 -right-2 bg-accent text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">⭐</span>}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-ink">{p.name}</span>
+                                  {p.description && (
+                                    <span className="text-xs text-ink/40 line-clamp-1 mt-0.5" title={p.description}>
+                                      {p.description}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <span className="font-bold text-ink">{p.name}</span>
                             </td>
                             <td className="px-6 py-4 text-ink/60 text-sm font-semibold">{p.brand}</td>
                             <td className="px-6 py-4">
@@ -919,13 +969,23 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                                 )}
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-right flex gap-3 justify-end items-center h-full pt-7">
-                              <button onClick={() => { setEditingProductId(p.id); setEditProductData(p); }} className="text-blue-500 hover:bg-blue-50 rounded-lg p-2" title="Editar">
-                                <Edit2 className="w-4.5 h-4.5" />
-                              </button>
-                              <button onClick={() => handleDeleteProduct(p.id)} className="text-red-500 hover:bg-red-50 rounded-lg p-2" title="Eliminar">
-                                <Trash2 className="w-4.5 h-4.5" />
-                              </button>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex gap-3 justify-end items-center">
+                                <button
+                                  onClick={() => {
+                                    setEditingProductId(p.id);
+                                    setEditProductData(p);
+                                    setIsAddingProduct(false);
+                                  }}
+                                  className={`p-2 rounded-lg transition-colors ${isEditing ? 'text-amber-600 bg-amber-100/50' : 'text-blue-500 hover:bg-blue-50'}`}
+                                  title="Editar"
+                                >
+                                  <Edit2 className="w-4.5 h-4.5" />
+                                </button>
+                                <button onClick={() => handleDeleteProduct(p.id)} className="text-red-500 hover:bg-red-50 rounded-lg p-2" title="Eliminar">
+                                  <Trash2 className="w-4.5 h-4.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
