@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, MessageCircle, ChevronRight } from 'lucide-react';
 import { Logo } from './Logo';
 import { chatWithGithubModels } from '../lib/githubChat';
+import { api } from '../services/api';
+import { Product } from '../types';
 
 export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,6 +13,19 @@ export const Chatbot = () => {
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const p = await api.getProducts();
+        setProducts(p);
+      } catch (error) {
+        console.error("Error al cargar productos en el chatbot:", error);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -30,8 +45,13 @@ export const Chatbot = () => {
         content: m.text
       }));
 
+      // Formateamos el catálogo completo para el chatbot
+      const productsContext = products.map(p => 
+        `- ${p.name} (Marca: ${p.brand}, Categoría: ${p.category || 'lente'}, Precio: $${p.price.toLocaleString('es-CL')}${p.discount_percent ? ` con ${p.discount_percent}% de descuento` : ''}, Stock: ${p.stock ?? 0} u.): ${p.description || 'Sin descripción'}`
+      ).join('\n');
+
       // 3. Invocamos el conector que creamos con el nuevo endpoint y modelo 'gpt-4o-mini'
-      const response = await chatWithGithubModels(userMsg, history);
+      const response = await chatWithGithubModels(userMsg, history, productsContext);
 
       // 4. Agregamos la respuesta del asistente virtual al estado de la interfaz
       setMessages(prev => [...prev, { role: 'model', text: response || 'Lo siento, tuve un problema. ¿Podrías repetir?' }]);

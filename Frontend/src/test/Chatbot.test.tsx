@@ -56,9 +56,13 @@ describe('Chatbot Component', () => {
     expect(screen.getByText('¿Tiene lentes de sol?')).toBeInTheDocument();
     // Esperar respuesta de la IA
     await waitFor(() => {
-      expect(chatWithGithubModels).toHaveBeenCalledWith('¿Tiene lentes de sol?', [
-        { role: 'assistant', content: '¡Hola! Bienvenido a Óptica Quinta. ¿En qué puedo asesorarte hoy?' }
-      ]);
+      expect(chatWithGithubModels).toHaveBeenCalledWith(
+        '¿Tiene lentes de sol?',
+        [
+          { role: 'assistant', content: '¡Hola! Bienvenido a Óptica Quinta. ¿En qué puedo asesorarte hoy?' }
+        ],
+        expect.any(String)
+      );
       expect(screen.getByText('Respuesta del optometrista virtual mockeado.')).toBeInTheDocument();
     });
   });

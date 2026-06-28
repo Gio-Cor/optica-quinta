@@ -8,12 +8,17 @@ const openai = new OpenAI({
     apiKey: import.meta.env.VITE_GITHUB_TOKEN || "sin-token-aun", // Esto evita que la app explote al cargar
     dangerouslyAllowBrowser: true
 });
-export const chatWithGithubModels = async (currentMessage: string, history: any[]) => {
+export const chatWithGithubModels = async (currentMessage: string, history: any[], productsContext?: string) => {
     try {
-        // 2. Usamos el rol 'developer' como muestra tu código guía para Óptica Quinta
+        let systemPrompt = "Eres un optometrista experto y asesor de ventas oficial para Óptica Quinta. Responde de forma muy amable, breve y profesional en español. Ayuda con dudas de lentes, accesorios y salud visual.";
+        
+        if (productsContext) {
+            systemPrompt += `\n\nTienes acceso al catálogo completo de la tienda en tiempo real (lentes, armazones y accesorios). Utiliza la siguiente lista de productos e inventario para responder las preguntas de los clientes de forma precisa, recomendando productos adecuados, mencionando disponibilidad (stock), características técnicas (como filtro azul, polarizados, antirreflejo, etc.), marcas y precios:\n${productsContext}\n\nNota: Si el cliente pregunta por un producto que no está en la lista o pregunta si vendes algo que no coincide con las descripciones, responde amablemente indicando qué productos similares tienes disponibles en el catálogo.`;
+        }
+
         const developerMessage = {
             role: "developer",
-            content: "Eres un optometrista experto para Óptica Quinta. Responde de forma muy amable, breve y profesional en español. Ayuda con dudas de lentes y salud visual."
+            content: systemPrompt
         };
 
         // Juntamos las instrucciones del desarrollador, el historial y el mensaje actual
