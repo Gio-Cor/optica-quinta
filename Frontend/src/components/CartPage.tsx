@@ -17,7 +17,8 @@ interface CartPageProps {
 
 export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onContinueShopping, onAddToCart, loggedInUser, onNavigateToTab }: CartPageProps) => {
   const [selectedItems, setSelectedItems] = useState<boolean[]>(items.map(() => true));
-  const [accessories, setAccessories] = useState<Product[]>([]);
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+  const [recFilter, setRecFilter] = useState<'all' | 'lente' | 'accesorio'>('all');
 
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
@@ -38,7 +39,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
   React.useEffect(() => {
     api.getProducts().then(products => {
-      setAccessories(products.filter(p => p.category === 'accesorio'));
+      setRecommendedProducts(products);
     }).catch(console.error);
   }, []);
 
@@ -295,49 +296,66 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
             </div>
           )}
 
-          {/* Sección de Accesorios (Real) */}
+            {/* Sección de Productos Recomendados */}
           <div className="mt-12">
-            <h2 className="text-xl font-bold text-ink mb-6">Accesorios para lentes <span className="text-ink/50 text-sm font-normal">({accessories.length} Artículos)</span></h2>
+            <h2 className="text-xl font-bold text-ink mb-6">Productos recomendados</h2>
             <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-              <button className="px-6 py-2 rounded-full border border-accent text-accent font-bold bg-accent/5 whitespace-nowrap">Todos</button>
-              <button className="px-6 py-2 rounded-full border border-ink/20 text-ink hover:border-ink/50 whitespace-nowrap transition-colors">Paños para Lentes</button>
-              <button className="px-6 py-2 rounded-full border border-ink/20 text-ink hover:border-ink/50 whitespace-nowrap transition-colors">Cadena para Lentes</button>
-              <button className="px-6 py-2 rounded-full border border-ink/20 text-ink hover:border-ink/50 whitespace-nowrap transition-colors">Estuche para Lentes</button>
-              <button className="px-6 py-2 rounded-full border border-ink/20 text-ink hover:border-ink/50 whitespace-nowrap transition-colors">Otros Accesorios</button>
+              <button 
+                onClick={() => setRecFilter('all')}
+                className={`px-6 py-2 rounded-full border whitespace-nowrap transition-all ${recFilter === 'all' ? 'border-accent text-accent font-bold bg-accent/5 ring-1 ring-accent' : 'border-ink/20 text-ink hover:border-ink/50 bg-transparent'}`}
+              >
+                Todos
+              </button>
+              <button 
+                onClick={() => setRecFilter('lente')}
+                className={`px-6 py-2 rounded-full border whitespace-nowrap transition-all ${recFilter === 'lente' ? 'border-accent text-accent font-bold bg-accent/5 ring-1 ring-accent' : 'border-ink/20 text-ink hover:border-ink/50 bg-transparent'}`}
+              >
+                Lentes
+              </button>
+              <button 
+                onClick={() => setRecFilter('accesorio')}
+                className={`px-6 py-2 rounded-full border whitespace-nowrap transition-all ${recFilter === 'accesorio' ? 'border-accent text-accent font-bold bg-accent/5 ring-1 ring-accent' : 'border-ink/20 text-ink hover:border-ink/50 bg-transparent'}`}
+              >
+                Accesorios
+              </button>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-              {accessories.map((acc) => (
-                <div key={acc.id} className="bg-white rounded-2xl p-4 shadow-sm border border-ink/5 hover:shadow-md transition-shadow flex flex-col items-center text-center relative group">
-                  <div className="w-full aspect-square bg-paper rounded-xl mb-3 flex items-center justify-center overflow-hidden relative">
-                    <img src={acc.image} alt={acc.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    <span className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${!acc.stock || acc.stock <= 0
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-green-100 text-green-700'
-                      }`}>
-                      {!acc.stock || acc.stock <= 0 ? 'Agotado' : `Stock: ${acc.stock}`}
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold text-ink line-clamp-2 min-h-[40px]">{acc.name}</h4>
-                  <p className="text-accent font-bold mt-1">CLP${acc.price.toLocaleString('es-CL')}</p>
+              {recommendedProducts
+                .filter(p => !items.some(item => item.product.id === p.id)) // Excluir productos ya en el carrito
+                .filter(p => recFilter === 'all' || p.category === recFilter)
+                .slice(0, 4) // Mostrar hasta 4 recomendaciones
+                .map((acc) => (
+                  <div key={acc.id} className="bg-white rounded-2xl p-4 shadow-sm border border-ink/5 hover:shadow-md transition-shadow flex flex-col items-center text-center relative group">
+                    <div className="w-full aspect-square bg-paper rounded-xl mb-3 flex items-center justify-center overflow-hidden relative">
+                      <img src={acc.image} alt={acc.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <span className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${!acc.stock || acc.stock <= 0
+                          ? 'bg-red-100 text-red-600'
+                          : 'bg-green-100 text-green-700'
+                        }`}>
+                        {!acc.stock || acc.stock <= 0 ? 'Agotado' : `Stock: ${acc.stock}`}
+                      </span>
+                    </div>
+                    <h4 className="text-sm font-bold text-ink line-clamp-2 min-h-[40px]">{acc.name}</h4>
+                    <p className="text-accent font-bold mt-1">CLP${acc.price.toLocaleString('es-CL')}</p>
 
-                  {acc.stock && acc.stock > 0 ? (
-                    <button
-                      onClick={() => onAddToCart(acc)}
-                      className="mt-3 w-full bg-ink text-white py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-accent transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Plus className="w-4 h-4" /> Agregar
-                    </button>
-                  ) : (
-                    <button
-                      disabled
-                      className="mt-3 w-full bg-gray-300 text-white py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-not-allowed opacity-0 group-hover:opacity-100"
-                    >
-                      <Plus className="w-4 h-4" /> Agotado
-                    </button>
-                  )}
-                </div>
-              ))}
+                    {acc.stock && acc.stock > 0 ? (
+                      <button
+                        onClick={() => onAddToCart(acc)}
+                        className="mt-3 w-full bg-ink text-white py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-accent transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Plus className="w-4 h-4" /> Agregar
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        className="mt-3 w-full bg-gray-300 text-white py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-not-allowed opacity-0 group-hover:opacity-100"
+                      >
+                        <Plus className="w-4 h-4" /> Agotado
+                      </button>
+                    )}
+                  </div>
+                ))}
             </div>
           </div>
         </div>
