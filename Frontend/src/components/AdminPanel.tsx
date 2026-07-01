@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Product, Appointment, User, LensOption, WorkOrder } from '../types';
 import { api } from '../services/api';
+import { showAlert } from '../utils/swal';
 
 export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?: User | null, onLogin?: (token: string, user: User) => void, onLogout?: () => void }) => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -130,7 +131,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
       refreshData();
     } catch (error: any) {
       console.error(error);
-      alert('Error al actualizar el producto: ' + (error.message || error));
+      showAlert('Error', 'Error al actualizar el producto: ' + (error.message || error), 'error');
     }
   };
 
@@ -165,7 +166,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
       setModelFile(null);
     } catch (error: any) {
       console.error(error);
-      alert('Error al guardar el producto: ' + (error.message || error));
+      showAlert('Error', 'Error al guardar el producto: ' + (error.message || error), 'error');
     }
   };
 
@@ -315,7 +316,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
       refreshData();
     } catch (error) {
       console.error(error);
-      alert('Error al actualizar la opción');
+      showAlert('Error', 'Error al actualizar la opción', 'error');
     }
   };
 
@@ -328,7 +329,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
       setNewLensOption({ name: '', price_add: 0, is_active: true });
     } catch (error) {
       console.error(error);
-      alert('Error al guardar la opción de cristal');
+      showAlert('Error', 'Error al guardar la opción de cristal', 'error');
     }
   };
 
@@ -348,8 +349,14 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
   const handleBulkDiscount = async (remove = false) => {
     const finalPercent = remove ? 0 : bulkDiscountPercent;
-    if (!remove && (finalPercent <= 0 || finalPercent > 100)) return alert('Porcentaje inválido. Usa un valor de 1 a 100.');
-    if (selectedProductIds.length === 0) return alert('Selecciona al menos un producto.');
+    if (!remove && (finalPercent <= 0 || finalPercent > 100)) {
+      showAlert('Porcentaje Inválido', 'Usa un valor de 1 a 100.', 'warning');
+      return;
+    }
+    if (selectedProductIds.length === 0) {
+      showAlert('Selección Requerida', 'Selecciona al menos un producto.', 'warning');
+      return;
+    }
     try {
       for (const id of selectedProductIds) {
         await api.updateProduct(id, { discount_percent: finalPercent });
@@ -357,10 +364,10 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
       refreshData();
       setSelectedProductIds([]);
       setBulkDiscountPercent(0);
-      alert(remove ? 'Descuentos eliminados correctamente.' : '¡Descuento aplicado masivamente!');
+      showAlert('Descuentos Actualizados', remove ? 'Descuentos eliminados correctamente.' : '¡Descuento aplicado masivamente!', 'success');
     } catch (error) {
       console.error(error);
-      alert('Error al aplicar descuentos');
+      showAlert('Error', 'Error al aplicar descuentos', 'error');
     }
   };
 

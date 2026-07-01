@@ -3,6 +3,8 @@ import { User } from '../types';
 import { Save, User as UserIcon, MapPin, CreditCard, Lock, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { api } from '../services/api';
+import { showAlert } from '../utils/swal';
+import Swal from 'sweetalert2';
 
 export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUpdateUser: (u: User) => void, onLogout: () => void }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'delete'>('profile');
@@ -28,16 +30,16 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
       if (error) throw new Error(error.message);
       
       onUpdateUser({ ...user, ...formData });
-      alert('Perfil actualizado correctamente');
+      showAlert('Perfil Actualizado', 'Perfil actualizado correctamente', 'success');
     } catch (err: any) {
-      alert('Hubo un error al actualizar el perfil: ' + err.message);
+      showAlert('Error', 'Hubo un error al actualizar el perfil: ' + err.message, 'error');
     }
   };
 
   const handlePasswordSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passData.newPassword !== passData.confirmPassword) {
-      return alert('Las contraseñas no coinciden');
+      return showAlert('Error', 'Las contraseñas no coinciden', 'error');
     }
     
     try {
@@ -47,30 +49,37 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
       
       if (error) throw new Error(error.message);
       
-      alert('Contraseña actualizada correctamente');
+      showAlert('Contraseña Actualizada', 'Contraseña actualizada correctamente', 'success');
       setPassData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err: any) {
-      alert(err.message);
+      showAlert('Error', err.message, 'error');
     }
   };
 
   const handleDeleteAccount = async () => {
-    const doubleConfirm = confirm(
-      '¿Estás seguro de que deseas eliminar tu cuenta permanentemente?\n\nEsta acción es irreversible y eliminará todos tus datos personales, incluyendo tu perfil y recetas médicas.'
-    );
-    if (!doubleConfirm) return;
-
-    const tripleConfirm = confirm(
-      'Por favor, confirma una vez más: ¿Realmente deseas eliminar tu cuenta y todos tus datos personales?'
-    );
-    if (!tripleConfirm) return;
+    const doubleConfirm = await Swal.fire({
+      title: '¿Estás seguro?',
+      text: '¿Deseas eliminar tu cuenta permanentemente? Esta acción es irreversible y eliminará todos tus datos personales, incluyendo tu perfil y recetas médicas.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, eliminar cuenta',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        popup: 'rounded-[24px]',
+        confirmButton: 'px-6 py-2.5 rounded-full font-bold text-sm text-white mx-1',
+        cancelButton: 'px-6 py-2.5 rounded-full font-bold text-sm text-white mx-1',
+      }
+    });
+    if (!doubleConfirm.isConfirmed) return;
 
     try {
       await api.deleteAccount();
-      alert('Tu cuenta y datos personales han sido eliminados correctamente.');
+      await showAlert('Cuenta Eliminada', 'Tu cuenta y datos personales han sido eliminados correctamente.', 'success');
       onLogout();
     } catch (err: any) {
-      alert('Error al eliminar la cuenta: ' + err.message);
+      showAlert('Error', 'Error al eliminar la cuenta: ' + err.message, 'error');
     }
   };
 

@@ -15,6 +15,7 @@ import { CartPage } from './components/CartPage';
 import { AuthForm } from './components/AuthForm';
 import { UserProfile } from './components/UserProfile';
 import { supabase } from './supabaseClient';
+import { showAlert } from './utils/swal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -93,7 +94,7 @@ export default function App() {
       }
       return [...prev, { product, quantity, lensOption: optionToUse }];
     });
-    alert(`Se agregó ${product.name} al carrito con cristales: ${optionToUse.name}`);
+    showAlert('¡Producto Agregado!', `Se agregó ${product.name} al carrito con cristales: ${optionToUse.name}`, 'success');
   };
 
   const handleRemoveFromCart = (index: number) => {
@@ -116,7 +117,7 @@ export default function App() {
           }}
           onAddToCart={handleAddToCart}
           onCheckout={() => {
-            alert('¡Gracias por tu compra!');
+            showAlert('¡Gracias por tu compra!', 'Tu orden ha sido procesada con éxito.', 'success');
             setCartItems([]);
             setActiveTab('home');
           }}

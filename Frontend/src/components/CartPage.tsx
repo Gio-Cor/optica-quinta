@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Product, CartItem, User } from '../types';
 import { Trash2, MessageCircle, RefreshCw, ShieldCheck, Truck, CreditCard, Plus, CheckCircle2, Lock, QrCode, Building } from 'lucide-react';
 import { api } from '../services/api';
+import { showAlert } from '../utils/swal';
 
 interface CartPageProps {
   items: CartItem[];
@@ -55,7 +56,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
       if (requiresPrescription) {
         // 1. Debe estar registrado y con sesión iniciada
         if (!loggedInUser) {
-          alert('Para proceder con la compra de productos con receta o cristales personalizados, primero debes iniciar sesión o registrarte.');
+          showAlert('Identificación Requerida', 'Para proceder con la compra de productos con receta o cristales personalizados, primero debes iniciar sesión o registrarte.', 'warning');
           if (onNavigateToTab) {
             onNavigateToTab('admin');
           }
@@ -75,7 +76,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
         }
 
         if (!hasAppointment) {
-          alert('Primero pide tu cita médica. Para comprar productos con receta o agendar cristales en tienda, el sistema requiere verificar que tengas una cita agendada.');
+          showAlert('Cita Médica Requerida', 'Primero pide tu cita médica. Para comprar productos con receta o agendar cristales en tienda, el sistema requiere verificar que tengas una cita agendada.', 'warning');
           if (onNavigateToTab) {
             onNavigateToTab('appointments');
           }
@@ -90,7 +91,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
       setIsCheckingOut(false);
     } catch (error) {
       console.error(error);
-      alert('Hubo un error al procesar tu compra. Por favor intenta nuevamente.');
+      showAlert('Error al comprar', 'Hubo un error al procesar tu compra. Por favor intenta nuevamente.', 'error');
       setIsCheckingOut(false);
     }
   };
@@ -125,7 +126,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
       }, 1500);
     } catch (err) {
       console.error("Error al registrar la orden en Supabase:", err);
-      alert("Hubo un error al guardar tu compra en el sistema. Intenta de nuevo.");
+      showAlert('Error de Registro', 'Hubo un error al guardar tu compra en el sistema. Intenta de nuevo.', 'error');
       setPaymentStep('form');
     }
   };

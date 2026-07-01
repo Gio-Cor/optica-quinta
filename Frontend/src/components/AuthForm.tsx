@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { api } from '../services/api';
+import { showAlert } from '../utils/swal';
 
 export const AuthForm = ({ onLogin }: { onLogin: (token: string, user: User) => void }) => {
   const [username, setUsername] = useState('');
@@ -15,7 +16,7 @@ export const AuthForm = ({ onLogin }: { onLogin: (token: string, user: User) => 
     try {
       if (isRegistering) {
         await api.registerUser(username, password);
-        alert('Usuario creado exitosamente. Ahora inicia sesión.');
+        showAlert('Cuenta Creada', 'Usuario creado exitosamente. Ahora inicia sesión.', 'success');
         setIsRegistering(false);
         setPassword('');
       } else {

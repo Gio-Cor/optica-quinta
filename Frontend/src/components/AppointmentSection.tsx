@@ -73,7 +73,7 @@ export const AppointmentSection = () => {
                   <input
                     required
                     type="text"
-                    className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
+                    className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all"
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                   />
@@ -83,7 +83,7 @@ export const AppointmentSection = () => {
                   <input
                     required
                     type="tel"
-                    className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
+                    className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all"
                     value={formData.phone}
                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
                   />
@@ -94,7 +94,7 @@ export const AppointmentSection = () => {
                 <input
                   required
                   type="email"
-                  className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
+                  className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all"
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
                 />
@@ -105,7 +105,7 @@ export const AppointmentSection = () => {
                   <input
                     required
                     type="date"
-                    className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
+                    className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all"
                     value={formData.date}
                     onChange={e => setFormData({ ...formData, date: e.target.value })}
                   />
@@ -115,7 +115,7 @@ export const AppointmentSection = () => {
                   <input
                     required
                     type="time"
-                    className="w-full bg-paper border-none rounded-xl px-4 py-3 outline-none focus:ring-1 ring-accent"
+                    className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all"
                     value={formData.time}
                     onChange={e => setFormData({ ...formData, time: e.target.value })}
                   />
