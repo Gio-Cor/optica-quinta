@@ -25,6 +25,54 @@ export const AppointmentSection = () => {
     return `${yyyy}-${mm}-${dd}`;
   };
 
+  const getAvailableTimes = (dateStr: string) => {
+    if (!dateStr) return [];
+    const selectedDate = new Date(dateStr + 'T00:00:00');
+    const dayOfWeek = selectedDate.getDay(); // 0 = Domingo, 6 = Sábado, 1-5 = Lunes-Viernes
+
+    if (dayOfWeek === 0) return []; // Cerrado los domingos
+
+    const slots: string[] = [];
+
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      // Lunes a Viernes: 09:30 - 18:30 con exclusión de 14:00 a 15:00
+      let currentHour = 9;
+      let currentMinute = 30;
+      
+      while (currentHour < 18 || (currentHour === 18 && currentMinute <= 30)) {
+        const timeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+        
+        // Bloquear entre 14:00 y 15:00 (las 14:00 y 14:30)
+        if (currentHour !== 14) {
+          slots.push(timeStr);
+        }
+
+        currentMinute += 30;
+        if (currentMinute >= 60) {
+          currentHour += 1;
+          currentMinute = 0;
+        }
+      }
+    } else if (dayOfWeek === 6) {
+      // Sábados: 10:00 - 14:00
+      let currentHour = 10;
+      let currentMinute = 0;
+
+      while (currentHour < 14 || (currentHour === 14 && currentMinute === 0)) {
+        const timeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+        slots.push(timeStr);
+
+        currentMinute += 30;
+        if (currentMinute >= 60) {
+          currentHour += 1;
+          currentMinute = 0;
+        }
+      }
+    }
+
+    return slots;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -158,20 +206,33 @@ export const AppointmentSection = () => {
                     required
                     type="date"
                     min={getTomorrowStr()}
-                    className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all"
+                    className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all text-xs font-bold text-ink"
                     value={formData.date}
-                    onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    onChange={e => setFormData({ ...formData, date: e.target.value, time: '' })}
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest font-bold opacity-50">Hora</label>
-                  <input
+                  <select
                     required
-                    type="time"
-                    className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all"
+                    className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all text-xs font-bold text-ink"
                     value={formData.time}
                     onChange={e => setFormData({ ...formData, time: e.target.value })}
-                  />
+                    disabled={!formData.date}
+                  >
+                    <option value="">
+                      {!formData.date 
+                        ? 'Elige fecha' 
+                        : getAvailableTimes(formData.date).length === 0 
+                        ? 'Cerrado (Dom)' 
+                        : 'Selecciona hora'}
+                    </option>
+                    {getAvailableTimes(formData.date).map(time => (
+                      <option key={time} value={time}>
+                        {time} hrs
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <button
