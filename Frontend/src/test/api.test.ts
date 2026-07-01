@@ -103,6 +103,9 @@ describe('api service', () => {
     expect(supabase.auth.signUp).toHaveBeenCalledWith({
       email: 'new@example.com',
       password: 'securepass',
+      options: {
+        emailRedirectTo: 'http://localhost:3000'
+      }
     });
     expect(supabase.from).toHaveBeenCalledWith('users');
     expect(result.user.id).toBe('new-auth-123');
