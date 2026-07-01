@@ -33,6 +33,7 @@ vi.mock('../supabaseClient', () => {
     supabase: {
       from: mockFrom,
       auth: mockAuth,
+      rpc: vi.fn(),
     },
   };
 });
@@ -160,27 +161,14 @@ describe('api service', () => {
     expect(eqMock).toHaveBeenCalledWith('id', 42);
   });
 
-  it('deleteAccount: debe llamar al backend con el token de sesión para eliminar la cuenta', async () => {
-    vi.mocked(supabase.auth.getSession).mockResolvedValue({
-      data: {
-        session: { access_token: 'valid-jwt-token' }
-      }
-    } as any);
-
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ message: 'Cuenta eliminada' })
+  it('deleteAccount: debe invocar la función RPC delete_own_user en Supabase para eliminar la cuenta', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: null,
+      error: null,
     });
-    global.fetch = mockFetch;
 
     await api.deleteAccount();
 
-    expect(supabase.auth.getSession).toHaveBeenCalled();
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/api/users/delete-account'), {
-      method: 'DELETE',
-      headers: {
-        'Authorization': 'Bearer valid-jwt-token'
-      }
-    });
+    expect(supabase.rpc).toHaveBeenCalledWith('delete_own_user');
   });
 });

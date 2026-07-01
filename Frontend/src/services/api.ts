@@ -245,25 +245,9 @@ export const api = {
   },
 
   deleteAccount: async (): Promise<void> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('No hay sesión activa');
-
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || ''}/api/users/delete-account`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`
-      }
-    });
-
-    if (!response.ok) {
-      let errorMessage = 'Error al eliminar la cuenta';
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorMessage;
-      } catch (e) {
-        errorMessage = `${response.status} ${response.statusText}`;
-      }
-      throw new Error(errorMessage);
+    const { error } = await supabase.rpc('delete_own_user');
+    if (error) {
+      throw new Error(error.message);
     }
   },
 };
