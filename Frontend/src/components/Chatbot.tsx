@@ -6,6 +6,16 @@ import { chatWithGithubModels } from '../lib/githubChat';
 import { api } from '../services/api';
 import { Product } from '../types';
 
+const formatMessage = (text: string) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index} className="font-bold text-ink">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+};
+
 export const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
@@ -92,9 +102,10 @@ export const Chatbot = () => {
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] p-4 rounded-2xl text-sm ${m.role === 'user' ? 'bg-ink text-paper rounded-br-none' : 'bg-paper text-ink rounded-bl-none'
+                  <div className={`max-w-[80%] p-4 rounded-2xl text-sm whitespace-pre-line ${
+                    m.role === 'user' ? 'bg-ink text-paper rounded-br-none' : 'bg-paper text-ink rounded-bl-none'
                     }`}>
-                    {m.text}
+                    {formatMessage(m.text)}
                   </div>
                 </div>
               ))}

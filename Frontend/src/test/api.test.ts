@@ -165,7 +165,7 @@ describe('api service', () => {
     vi.mocked(supabase.rpc).mockResolvedValue({
       data: null,
       error: null,
-    });
+    } as any);
 
     await api.deleteAccount();
 
