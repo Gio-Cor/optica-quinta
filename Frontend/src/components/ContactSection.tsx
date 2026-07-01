@@ -40,20 +40,12 @@ export const ContactSection = () => (
           </div>
         </div>
       </div>
-      <div className="h-[400px] rounded-[40px] overflow-hidden border-8 border-white shadow-xl">
-        {/* Placeholder for Map */}
-        <div className="w-full h-full bg-ink/5 flex items-center justify-center relative">
-          <div className="text-center p-8">
-            <MapPin className="w-12 h-12 text-accent mx-auto mb-4" />
-            <p className="font-serif italic text-xl">Mapa Interactivo en Construcción</p>
-            <p className="text-sm opacity-50">Localmente mostramos esta vista previa.</p>
-          </div>
-          <img 
-            src="https://picsum.photos/seed/map/800/600" 
-            className="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none"
-            referrerPolicy="no-referrer"
-          />
-        </div>
+      <div className="h-[400px] rounded-[40px] overflow-hidden border-8 border-white shadow-xl relative">
+        <img 
+          src="/storefront.jpg" 
+          alt="Fachada Ópticas Quinta" 
+          className="w-full h-full object-cover"
+        />
       </div>
     </div>
   </section>
