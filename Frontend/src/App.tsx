@@ -16,6 +16,7 @@ import { AuthForm } from './components/AuthForm';
 import { UserProfile } from './components/UserProfile';
 import { supabase } from './supabaseClient';
 import { showAlert } from './utils/swal';
+import { ResetPasswordForm } from './components/ResetPasswordForm';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -63,11 +64,20 @@ export default function App() {
       setSessionLoading(false);
     });
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setActiveTab('reset-password');
+      }
+    });
+
     const handlePopState = (e: PopStateEvent) => {
       if (!e.state?.productId) setDetailProduct(null);
     };
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleOpenDetail = (product: Product) => {
@@ -128,6 +138,11 @@ export default function App() {
       );
       case 'appointments': return <AppointmentSection />;
       case 'contact': return <ContactSection />;
+      case 'reset-password':
+        return <ResetPasswordForm onComplete={async () => {
+          await supabase.auth.signOut();
+          setActiveTab('admin');
+        }} />;
       case 'admin':
         if (sessionLoading) return (
           <div className="min-h-screen flex items-center justify-center">
