@@ -991,27 +991,7 @@ export const VirtualTryOnModal = ({ product, onClose }: { product: Product, onCl
                 </div>
               )}
 
-              {/* Color Selector */}
-              {!loadingModel && !error && (
-                <div className="pt-3 md:pt-4 border-t border-ink/5">
-                  <span className="text-[11px] text-ink/60 font-semibold block mb-2">Color del Marco: <span className="text-ink font-bold">{frameColor.name}</span></span>
-                  <div className="flex gap-2">
-                    {colorOptions.map((option) => (
-                      <button
-                        key={option.hex}
-                        onClick={() => setFrameColor(option)}
-                        className={`w-8 h-8 rounded-full border-2 transition-all cursor-pointer flex items-center justify-center ${frameColor.hex === option.hex ? 'border-accent scale-110 shadow-sm' : 'border-transparent hover:scale-105'}`}
-                        title={option.name}
-                      >
-                        <span 
-                          className="w-6 h-6 rounded-full block border border-ink/10" 
-                          style={{ backgroundColor: option.hex }}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+
 
               {/* Custom Size Adjuster Slider */}
               {!loadingModel && !error && (

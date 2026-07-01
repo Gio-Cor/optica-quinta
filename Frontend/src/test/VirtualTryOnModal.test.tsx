@@ -169,37 +169,9 @@ describe('VirtualTryOnModal Component', () => {
     expect(screen.getByText('En vivo')).toBeInTheDocument();
   });
 
-  // Verifica que se infieran los estilos correctos de marcos según el nombre del producto
-  it('debe asignar la paleta de colores de estilo rimless para un producto multigressiv', async () => {
-    const rimlessProduct = { ...mockProduct, name: 'Lente Multigressiv Rodenstock' };
-    await renderInSuccessState(rimlessProduct);
-    
-    // El estilo rimless debe incluir la opción "Oro Fino"
-    expect(screen.getByTitle('Oro Fino')).toBeInTheDocument();
-  });
 
-  // Verifica que se infieran los estilos correctos de marcos deportivos
-  it('debe asignar la paleta de colores de estilo sport para un producto oakley o sport', async () => {
-    const sportProduct = { ...mockProduct, name: 'Lente Oakley Sport' };
-    await renderInSuccessState(sportProduct);
-    
-    // El estilo deportivo debe incluir la opción "Carbón Mate"
-    expect(screen.getByTitle('Carbón Mate')).toBeInTheDocument();
-  });
 
-  // Comprueba que al presionar un botón de color se actualice el texto indicativo del color seleccionado
-  it('debe permitir cambiar el color del marco seleccionado', async () => {
-    await renderInSuccessState();
 
-    // Por defecto el primer color para 'rayban' es 'Negro Titanio'
-    expect(screen.getByText(/Color del Marco:/)).toHaveTextContent('Negro Titanio');
-
-    // Cambia al segundo color (Plata Satinado)
-    const colorBtn = screen.getByTitle('Plata Satinado');
-    fireEvent.click(colorBtn);
-
-    expect(screen.getByText(/Color del Marco:/)).toHaveTextContent('Plata Satinado');
-  });
 
   // Valida que el cambio en el control deslizante actualice el porcentaje de escala en la interfaz
   it('debe actualizar la escala del lente al deslizar la barra de tamaño', async () => {
