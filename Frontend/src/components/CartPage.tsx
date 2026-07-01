@@ -24,9 +24,24 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
   // Estados de pasarela de pago simulada
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<'form' | 'processing' | 'success'>('form');
+  const [paymentStep, setPaymentStep] = useState<'delivery' | 'form' | 'processing' | 'success'>('delivery');
   const [cardData, setCardData] = useState({ number: '4242 4242 4242 4242', expiry: '12/28', cvv: '123', name: '' });
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'qr' | 'transfer'>('card');
+
+  const [deliveryType, setDeliveryType] = useState<'shipping' | 'pickup'>('shipping');
+  const [shippingAddress, setShippingAddress] = useState({
+    region: 'Región de Valparaíso',
+    comuna: '',
+    street: loggedInUser?.address || '',
+    detail: ''
+  });
+  const [selectedBranch, setSelectedBranch] = useState('Sucursal Quilpué - Manuel Bulnes 920, Local 3, Quilpué');
+
+  React.useEffect(() => {
+    if (loggedInUser?.address) {
+      setShippingAddress(prev => ({ ...prev, street: loggedInUser.address || '' }));
+    }
+  }, [loggedInUser]);
 
   React.useEffect(() => {
     // Refresh selected when items change
@@ -88,7 +103,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
       // En lugar de llamar a Stripe, abrimos la pasarela de pago simulada para la demostración
       setShowPaymentModal(true);
-      setPaymentStep('form');
+      setPaymentStep('delivery');
       setIsCheckingOut(false);
     } catch (error) {
       console.error(error);
@@ -437,17 +452,144 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
           `}</style>
 
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-ink/5 relative overflow-hidden animate-in fade-in zoom-in duration-200">
-            {paymentStep === 'form' && (
+            {paymentStep === 'delivery' && (
               <div>
+                <div className="flex justify-between items-center mb-6 text-xs text-ink/40 font-bold uppercase tracking-wider">
+                  <span className="text-accent">1. Entrega</span>
+                  <span>&rarr;</span>
+                  <span>2. Pago</span>
+                  <span>&rarr;</span>
+                  <span>3. Confirmación</span>
+                </div>
+
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-ink flex items-center gap-2">
-                    <Lock className="w-5 h-5 text-green-600" /> Pasarela de Pago
+                    <Truck className="w-5 h-5 text-accent" /> Tipo de Entrega
                   </h3>
                   <button 
                     onClick={() => setShowPaymentModal(false)}
                     className="text-ink/40 hover:text-ink text-sm font-semibold"
                   >
                     Cancelar
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <button 
+                    onClick={() => setDeliveryType('shipping')}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border text-xs font-bold transition-all ${deliveryType === 'shipping' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
+                  >
+                    <Truck className="w-5 h-5" />
+                    <span>Envío a Domicilio</span>
+                  </button>
+                  <button 
+                    onClick={() => setDeliveryType('pickup')}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border text-xs font-bold transition-all ${deliveryType === 'pickup' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
+                  >
+                    <Building className="w-5 h-5" />
+                    <span>Retiro en Tienda</span>
+                  </button>
+                </div>
+
+                {deliveryType === 'shipping' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] font-bold text-ink/60 block mb-1 uppercase tracking-wider">Región</label>
+                      <select 
+                        className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-medium"
+                        value={shippingAddress.region}
+                        onChange={e => setShippingAddress({ ...shippingAddress, region: e.target.value })}
+                      >
+                        <option value="Región de Valparaíso">Región de Valparaíso</option>
+                        <option value="Región Metropolitana">Región Metropolitana</option>
+                        <option value="Región de Coquimbo">Región de Coquimbo</option>
+                        <option value="Región del Biobío">Región del Biobío</option>
+                        <option value="Región de la Araucanía">Región de la Araucanía</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-ink/60 block mb-1 uppercase tracking-wider">Comuna</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ej: Quilpué, Viña del Mar, Santiago"
+                        className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-medium"
+                        value={shippingAddress.comuna}
+                        onChange={e => setShippingAddress({ ...shippingAddress, comuna: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-ink/60 block mb-1 uppercase tracking-wider">Dirección (Calle y Número)</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ej: Av. Los Carrera 123"
+                        className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-medium"
+                        value={shippingAddress.street}
+                        onChange={e => setShippingAddress({ ...shippingAddress, street: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-ink/60 block mb-1 uppercase tracking-wider">Dpto / Casa / Oficina (Opcional)</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ej: Dpto 402"
+                        className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-medium"
+                        value={shippingAddress.detail}
+                        onChange={e => setShippingAddress({ ...shippingAddress, detail: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[10px] font-bold text-ink/60 block mb-2 uppercase tracking-wider">Selecciona la sucursal de retiro</label>
+                    <select 
+                      className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-medium"
+                      value={selectedBranch}
+                      onChange={e => setSelectedBranch(e.target.value)}
+                    >
+                      <option value="Sucursal Quilpué - Manuel Bulnes 920, Local 3, Quilpué">Sucursal Quilpué - Manuel Bulnes 920, Local 3, Quilpué</option>
+                      <option value="Sucursal Concón - Av. Manantiales 945, Concón">Sucursal Concón - Av. Manantiales 945, Concón</option>
+                      <option value="Sucursal Quintero - Cabo Ortiz 149, Quintero">Sucursal Quintero - Cabo Ortiz 149, Quintero</option>
+                    </select>
+                    <p className="text-[11px] text-ink/50 mt-4 leading-relaxed font-medium">
+                      * Tu pedido estará listo para retiro en un plazo de 24 a 48 horas hábiles. Recibirás una notificación por correo electrónico.
+                    </p>
+                  </div>
+                )}
+
+                <button 
+                  onClick={() => {
+                    if (deliveryType === 'shipping' && (!shippingAddress.comuna.trim() || !shippingAddress.street.trim())) {
+                      showAlert('Campos Obligatorios', 'Por favor, ingresa la comuna y dirección para el despacho.', 'warning');
+                      return;
+                    }
+                    setPaymentStep('form');
+                  }}
+                  className="w-full bg-accent text-white font-bold py-4 rounded-xl mt-6 hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20"
+                >
+                  Continuar al Pago
+                </button>
+              </div>
+            )}
+
+            {paymentStep === 'form' && (
+              <div>
+                <div className="flex justify-between items-center mb-6 text-xs text-ink/40 font-bold uppercase tracking-wider">
+                  <span className="text-green-600">✓ Entrega</span>
+                  <span>&rarr;</span>
+                  <span className="text-accent">2. Pago</span>
+                  <span>&rarr;</span>
+                  <span>3. Confirmación</span>
+                </div>
+
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-ink flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-green-600" /> Pasarela de Pago
+                  </h3>
+                  <button 
+                    onClick={() => setPaymentStep('delivery')}
+                    className="text-accent hover:underline text-xs font-bold"
+                  >
+                    &larr; Volver
                   </button>
                 </div>
 
@@ -463,21 +605,21 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
                 <div className="grid grid-cols-3 gap-2 mb-6">
                   <button 
                     onClick={() => setPaymentMethod('card')}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-xs font-bold transition-all ${paymentMethod === 'card' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-[10px] font-bold transition-all ${paymentMethod === 'card' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
                   >
                     <CreditCard className="w-4 h-4" />
                     <span>Tarjeta</span>
                   </button>
                   <button 
                     onClick={() => setPaymentMethod('qr')}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-xs font-bold transition-all ${paymentMethod === 'qr' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-[10px] font-bold transition-all ${paymentMethod === 'qr' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
                   >
                     <QrCode className="w-4 h-4" />
                     <span>Pago QR</span>
                   </button>
                   <button 
                     onClick={() => setPaymentMethod('transfer')}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-xs font-bold transition-all ${paymentMethod === 'transfer' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border text-[10px] font-bold transition-all ${paymentMethod === 'transfer' ? 'border-accent bg-accent/5 text-accent ring-1 ring-accent' : 'border-ink/10 text-ink/60 hover:border-ink/20'}`}
                   >
                     <Building className="w-4 h-4" />
                     <span>Transferir</span>
@@ -510,42 +652,42 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
                     <div className="space-y-4">
                       <div>
-                        <label className="text-xs font-bold text-ink/60 block mb-1">Nombre en la tarjeta</label>
+                        <label className="text-[10px] font-bold text-ink/60 block mb-1 uppercase tracking-wider">Nombre en la tarjeta</label>
                         <input 
                           type="text" 
                           placeholder="JUAN PEREZ"
-                          className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-medium uppercase"
+                          className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-medium uppercase"
                           value={cardData.name}
                           onChange={e => setCardData({...cardData, name: e.target.value})}
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-ink/60 block mb-1">Número de tarjeta</label>
+                        <label className="text-[10px] font-bold text-ink/60 block mb-1 uppercase tracking-wider">Número de tarjeta</label>
                         <input 
                           type="text" 
-                          className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-mono"
+                          className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-mono"
                           value={cardData.number}
                           onChange={e => setCardData({...cardData, number: e.target.value})}
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="text-xs font-bold text-ink/60 block mb-1">Fecha exp.</label>
+                          <label className="text-[10px] font-bold text-ink/60 block mb-1 uppercase tracking-wider">Fecha exp.</label>
                           <input 
                             type="text" 
                             placeholder="MM/AA"
-                            className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-mono"
+                            className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-mono"
                             value={cardData.expiry}
                             onChange={e => setCardData({...cardData, expiry: e.target.value})}
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-bold text-ink/60 block mb-1">CVV</label>
+                          <label className="text-[10px] font-bold text-ink/60 block mb-1 uppercase tracking-wider">CVV</label>
                           <input 
                             type="password" 
                             placeholder="123"
                             maxLength={4}
-                            className="w-full bg-paper border-none rounded-xl px-4 py-3 text-sm focus:ring-1 ring-accent outline-none font-mono"
+                            className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-mono"
                             value={cardData.cvv}
                             onChange={e => setCardData({...cardData, cvv: e.target.value})}
                           />
@@ -602,7 +744,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
                       Realiza una transferencia bancaria a los siguientes datos y haz clic en confirmar.
                     </p>
 
-                    <div className="bg-paper p-4 rounded-2xl space-y-2.5 text-xs font-medium">
+                    <div className="bg-paper p-4 rounded-2xl space-y-2.5 text-[11px] font-medium">
                       <div className="flex justify-between">
                         <span className="text-ink/50">Banco:</span>
                         <span className="text-ink font-bold">BancoEstado</span>
@@ -654,12 +796,27 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
             )}
 
             {paymentStep === 'success' && (
-              <div className="py-12 flex flex-col items-center justify-center text-center animate-in zoom-in duration-300">
+              <div className="py-8 flex flex-col items-center justify-center text-center animate-in zoom-in duration-300">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
                   <CheckCircle2 className="w-12 h-12 text-green-600" />
                 </div>
                 <h4 className="text-2xl font-bold text-ink mb-2">¡Pago Aprobado!</h4>
-                <p className="text-sm text-ink/50">Tu pedido ha sido procesado con éxito.</p>
+                <p className="text-sm text-ink/50 mb-6 font-medium">Tu pedido ha sido procesado con éxito.</p>
+                
+                <div className="bg-paper p-4 rounded-2xl w-full text-left border border-ink/5 space-y-2 text-xs">
+                  <p className="font-bold text-ink uppercase tracking-wider text-[10px] text-accent">Detalle de Entrega</p>
+                  {deliveryType === 'shipping' ? (
+                    <>
+                      <p className="font-bold text-ink">Tipo: <span className="font-normal text-ink/80">Despacho a Domicilio</span></p>
+                      <p className="font-bold text-ink">Dirección: <span className="font-normal text-ink/80">{shippingAddress.street}, {shippingAddress.comuna}, {shippingAddress.region} {shippingAddress.detail && `(${shippingAddress.detail})`}</span></p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-bold text-ink">Tipo: <span className="font-normal text-ink/80">Retiro en Tienda</span></p>
+                      <p className="font-bold text-ink">Sucursal: <span className="font-normal text-ink/80">{selectedBranch}</span></p>
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
