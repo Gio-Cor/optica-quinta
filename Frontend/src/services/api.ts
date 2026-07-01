@@ -1,5 +1,7 @@
 import { supabase } from '../supabaseClient';
 import { Product, Appointment, User, LensOption, WorkOrder, CartItem } from '../types';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const api = {
   getProducts: async (): Promise<Product[]> => {
@@ -95,25 +97,111 @@ export const api = {
   },
 
   downloadMonthlyReport: async (): Promise<void> => {
+    // 1. Obtener la sesión activa
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No hay sesión activa');
 
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || ''}/api/reports/monthly-sales/pdf`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`
+    // 2. Obtener datos de ventas y citas desde Supabase
+    const { data: workOrders, error: wError } = await supabase
+      .from('work_orders')
+      .select('*');
+    if (wError) throw new Error(wError.message);
+
+    const { data: appointments, error: aError } = await supabase
+      .from('appointments')
+      .select('*');
+    if (aError) throw new Error(aError.message);
+
+    // 3. Crear documento PDF con jsPDF
+    const doc = new jsPDF();
+
+    // Fondo y cabecera
+    doc.setFillColor(95, 59, 143); // Morado Optica Quinta
+    doc.rect(0, 0, 210, 40, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text('ÓPTICAS QUINTA', 15, 22);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('REPORTE FINANCIERO Y DE VENTAS MENSUALES', 15, 30);
+
+    // Metadata del Reporte (Lado Derecho)
+    const todayStr = new Date().toLocaleString('es-CL', {
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    doc.setFontSize(8);
+    doc.text(`Generado: ${todayStr}`, 130, 20);
+    doc.text(`Administrador: ${session.user.email}`, 130, 26);
+
+    // Resumen Ejecutivo
+    doc.setTextColor(14, 11, 22);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Resumen Ejecutivo', 15, 55);
+
+    const totalIncome = (workOrders || []).reduce((sum, o) => sum + Number(o.total_amount), 0);
+    const totalOrders = (workOrders || []).length;
+    const totalAppointments = (appointments || []).length;
+
+    // Tarjeta del Resumen Financiero
+    doc.setFillColor(248, 246, 250);
+    doc.rect(15, 60, 180, 25, 'F');
+    doc.setDrawColor(95, 59, 143);
+    doc.setLineWidth(0.5);
+    doc.rect(15, 60, 180, 25, 'S');
+
+    doc.setFontSize(9);
+    doc.setTextColor(95, 59, 143);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INGRESOS TOTALES', 25, 70);
+    doc.text('ÓRDENES COMPLETADAS', 85, 70);
+    doc.text('CITAS AGENDADAS', 145, 70);
+
+    doc.setTextColor(14, 11, 22);
+    doc.setFontSize(11);
+    doc.text(`$${totalIncome.toLocaleString('es-CL')}`, 25, 78);
+    doc.text(`${totalOrders} ventas`, 85, 78);
+    doc.text(`${totalAppointments} citas`, 145, 78);
+
+    // Tabla de Ventas
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Detalle de Ventas Registradas', 15, 100);
+
+    const salesHeaders = [['ID', 'Fecha', 'Cliente / Correo', 'Método Pago', 'Total']];
+    const salesRows = (workOrders || []).slice().reverse().map(w => [
+      `#${w.id}`,
+      new Date(w.created_at).toLocaleString('es-CL', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }),
+      w.customer_email || w.user_name || (w.user_id ? `Cliente ID: ${w.user_id}` : 'Cliente Web Anónimo'),
+      w.payment_method === 'card' ? 'Tarjeta' : w.payment_method === 'qr' ? 'Pago QR' : w.payment_method === 'transfer' ? 'Transferencia' : 'Pago Integrado',
+      `$${Number(w.total_amount).toLocaleString('es-CL')}`
+    ]);
+
+    autoTable(doc, {
+      startY: 105,
+      head: salesHeaders,
+      body: salesRows,
+      theme: 'striped',
+      headStyles: { fillColor: [95, 59, 143], fontStyle: 'bold' },
+      styles: { fontSize: 8, font: 'helvetica' },
+      columnStyles: {
+        0: { cellWidth: 15 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 70 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 30, halign: 'right' }
       }
     });
 
-    if (!response.ok) throw new Error('Error al generar el reporte');
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'ventas_mensuales.pdf';
-    a.click();
-    window.URL.revokeObjectURL(url);
+    // Guardar PDF en el navegador del cliente
+    doc.save(`Reporte_Ventas_${new Date().toISOString().slice(0, 7)}.pdf`);
   },
 
   checkout: async (items: { productId: number; quantity: number; price: number; lensOptionName?: string; lensAddonPrice?: number }[], total_amount: number): Promise<string> => {
