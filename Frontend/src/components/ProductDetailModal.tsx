@@ -313,7 +313,13 @@ export const ProductDetailModal = ({ product, onClose, onAddToCart, onTryOn, onR
                         >-</button>
                         <span className="text-lg font-bold text-ink w-6 text-center">{quantity}</span>
                         <button 
-                          onClick={() => setQuantity(quantity + 1)}
+                          onClick={() => setQuantity(prev => {
+                            const newQty = prev + 1;
+                            if (newQty > (product.stock ?? 0)) {
+                              return prev;
+                            }
+                            return newQty;
+                          })}
                           className="text-2xl text-ink/50 hover:text-ink w-8 flex justify-center"
                         >+</button>
                       </div>

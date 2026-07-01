@@ -108,6 +108,22 @@ export default function App() {
       return false;
     }
 
+    // Validar stock disponible sumando lo que ya está en el carrito
+    const existingQty = cartItems
+      .filter(item => item.product.id === product.id)
+      .reduce((sum, item) => sum + item.quantity, 0);
+
+    const totalRequested = existingQty + quantity;
+
+    if (totalRequested > (product.stock ?? 0)) {
+      showAlert(
+        'Stock Insuficiente',
+        `No puedes agregar más unidades de este producto. El stock disponible es de ${product.stock ?? 0} unidades y ya tienes ${existingQty} en tu carrito.`,
+        'warning'
+      );
+      return false;
+    }
+
     setCartItems(prev => {
       const existing = prev.findIndex(item => item.product.id === product.id && item.lensOption.id === optionToUse.id);
       if (existing >= 0) {
@@ -139,7 +155,21 @@ export default function App() {
           onRemove={handleRemoveFromCart}
           onUpdateQuantity={(index, delta) => {
             const newCart = [...cartItems];
-            newCart[index].quantity = Math.max(1, newCart[index].quantity + delta);
+            const item = newCart[index];
+            if (!item) return;
+
+            const newQty = item.quantity + delta;
+
+            if (delta > 0 && newQty > (item.product.stock ?? 0)) {
+              showAlert(
+                'Stock Insuficiente',
+                `No puedes agregar más unidades de este producto. El stock disponible es de ${item.product.stock ?? 0} unidades.`,
+                'warning'
+              );
+              return;
+            }
+
+            item.quantity = Math.max(1, newQty);
             setCartItems(newCart);
           }}
           onAddToCart={handleAddToCart}
