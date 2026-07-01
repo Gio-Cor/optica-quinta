@@ -176,9 +176,6 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
       <div className="flex justify-between items-end mb-6">
         <h1 className="text-3xl font-bold text-ink">Mi carrito de compras ({items.length})</h1>
-        <button className="text-accent hover:underline text-sm font-medium flex items-center gap-2">
-          Comparta su carrito
-        </button>
       </div>
 
       <div className="mb-4 flex items-center gap-2">
@@ -395,10 +392,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
                   (Aplica antes de añadir los gastos de envío.)
                 </p>
               </div>
-              <div className="flex items-center gap-3 text-xs text-ink/70">
-                <MessageCircle className="w-5 h-5 text-ink/60" />
-                <p>¿Necesita ayuda? <button className="text-accent hover:underline">Iniciar un Chat en vivo</button></p>
-              </div>
+
               <div className="flex items-center gap-3 text-xs text-ink/70">
                 <RefreshCw className="w-5 h-5 text-ink/60" />
                 <p>Cambio y devolución en 60 días</p>
