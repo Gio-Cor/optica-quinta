@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { CheckCircle } from 'lucide-react';
 import { api } from '../services/api';
+import { showAlert } from '../utils/swal';
 
 export const AppointmentSection = () => {
   const [formData, setFormData] = useState({
@@ -14,8 +15,59 @@ export const AppointmentSection = () => {
   });
   const [submitted, setSubmitted] = useState(false);
 
+  const getTomorrowStr = () => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const yyyy = tomorrow.getFullYear();
+    const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const dd = String(tomorrow.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Validar que la fecha sea desde mañana en adelante
+    const selectedDate = new Date(formData.date + 'T00:00:00');
+    const tomorrowDate = new Date();
+    tomorrowDate.setHours(0, 0, 0, 0);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+    if (selectedDate < tomorrowDate) {
+      showAlert('Fecha no válida', 'Las citas solo se pueden agendar a partir del día de mañana.', 'warning');
+      return;
+    }
+
+    // 2. Validar que no sea día domingo (cerrado)
+    const dayOfWeek = selectedDate.getDay(); // 0 = Domingo, 6 = Sábado, 1-5 = Lunes-Viernes
+    if (dayOfWeek === 0) {
+      showAlert('Tienda Cerrada', 'Los domingos la tienda está cerrada. Por favor elige otro día de lunes a sábado.', 'warning');
+      return;
+    }
+
+    // 3. Validar horario correspondiente al día
+    const [hoursStr, minutesStr] = formData.time.split(':');
+    const selectedTimeInMinutes = parseInt(hoursStr) * 60 + parseInt(minutesStr);
+
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      // Lunes a Viernes: 09:30 - 18:30
+      const openMinutes = 9 * 60 + 30; // 09:30
+      const closeMinutes = 18 * 60 + 30; // 18:30
+      if (selectedTimeInMinutes < openMinutes || selectedTimeInMinutes > closeMinutes) {
+        showAlert('Horario no disponible', 'De lunes a viernes, el horario de citas es de 09:30 a 18:30.', 'warning');
+        return;
+      }
+    } else if (dayOfWeek === 6) {
+      // Sábados: 10:00 - 14:00
+      const openMinutes = 10 * 60; // 10:00
+      const closeMinutes = 14 * 60; // 14:00
+      if (selectedTimeInMinutes < openMinutes || selectedTimeInMinutes > closeMinutes) {
+        showAlert('Horario no disponible', 'Los días sábados, el horario de citas es de 10:00 a 14:00.', 'warning');
+        return;
+      }
+    }
+
     await api.createAppointment(formData as any);
     setSubmitted(true);
   };
@@ -105,6 +157,7 @@ export const AppointmentSection = () => {
                   <input
                     required
                     type="date"
+                    min={getTomorrowStr()}
                     className="w-full bg-paper border border-ink/20 rounded-xl px-4 py-3 outline-none focus:border-accent focus:ring-1 ring-accent transition-all"
                     value={formData.date}
                     onChange={e => setFormData({ ...formData, date: e.target.value })}
