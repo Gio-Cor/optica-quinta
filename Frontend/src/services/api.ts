@@ -170,7 +170,15 @@ export const api = {
     return data || [];
   },
 
-  createWorkOrder: async (userId: string | null, items: CartItem[], totalAmount: number): Promise<void> => {
+  createWorkOrder: async (
+    userId: string | null,
+    items: CartItem[],
+    totalAmount: number,
+    email?: string,
+    paymentMethod?: string,
+    deliveryType?: string,
+    deliveryAddress?: string
+  ): Promise<void> => {
     let integerUserId: number | null = null;
     if (userId) {
       const { data: userData } = await supabase
@@ -190,7 +198,11 @@ export const api = {
         total_amount: totalAmount,
         deposit_amount: totalAmount,
         balance_due: 0,
-        status: 'completed'
+        status: 'completed',
+        customer_email: email || null,
+        payment_method: paymentMethod || null,
+        delivery_type: deliveryType || null,
+        delivery_address: deliveryAddress || null
       }])
       .select()
       .single();

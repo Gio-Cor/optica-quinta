@@ -36,6 +36,7 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
     detail: ''
   });
   const [selectedBranch, setSelectedBranch] = useState('Sucursal Quilpué - Manuel Bulnes 920, Local 3, Quilpué');
+  const [guestEmail, setGuestEmail] = useState('');
 
   React.useEffect(() => {
     if (loggedInUser?.address) {
@@ -117,11 +118,20 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
     try {
       const selectedCartItems = items.filter((_, idx) => selectedItems[idx]);
 
+      const emailToUse = loggedInUser?.email || guestEmail;
+      const addressToUse = deliveryType === 'shipping'
+        ? `${shippingAddress.street}, ${shippingAddress.comuna}, ${shippingAddress.region}${shippingAddress.detail ? ` (${shippingAddress.detail})` : ''}`
+        : selectedBranch;
+
       // Registrar la orden en Supabase
       await api.createWorkOrder(
         loggedInUser?.id || null, 
         selectedCartItems,
-        totalPrice
+        totalPrice,
+        emailToUse,
+        paymentMethod,
+        deliveryType,
+        addressToUse
       );
 
       // Reducir el stock de cada producto comprado
@@ -491,6 +501,19 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
                   </button>
                 </div>
 
+                {!loggedInUser && (
+                  <div className="mb-4">
+                    <label className="text-[10px] font-bold text-ink/60 block mb-1 uppercase tracking-wider">Correo Electrónico (Obligatorio)</label>
+                    <input 
+                      type="email" 
+                      placeholder="Ej: tu-correo@dominio.com"
+                      className="w-full bg-paper border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-medium"
+                      value={guestEmail}
+                      onChange={e => setGuestEmail(e.target.value)}
+                    />
+                  </div>
+                )}
+
                 {deliveryType === 'shipping' ? (
                   <div className="space-y-4">
                     <div>
@@ -558,6 +581,12 @@ export const CartPage = ({ items, onRemove, onUpdateQuantity, onCheckout, onCont
 
                 <button 
                   onClick={() => {
+                    if (!loggedInUser) {
+                      if (!guestEmail.trim() || !guestEmail.includes('@')) {
+                        showAlert('Correo Requerido', 'Por favor, ingresa un correo electrónico válido.', 'warning');
+                        return;
+                      }
+                    }
                     if (deliveryType === 'shipping' && (!shippingAddress.comuna.trim() || !shippingAddress.street.trim())) {
                       showAlert('Campos Obligatorios', 'Por favor, ingresa la comuna y dirección para el despacho.', 'warning');
                       return;

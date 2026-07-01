@@ -13,6 +13,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [lensOptions, setLensOptions] = useState<LensOption[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [selectedSale, setSelectedSale] = useState<WorkOrder | null>(null);
   const [view, setView] = useState<'dashboard' | 'products' | 'lens_options' | 'appointments' | 'reports' | 'sales'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [showOnlyFeatured, setShowOnlyFeatured] = useState(false);
@@ -1114,7 +1115,7 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
                       {workOrders.length === 0 ? (
                         <tr><td colSpan={5} className="text-center py-12 text-ink/50 font-bold">No hay ventas registradas.</td></tr>
                       ) : workOrders.slice().reverse().map(w => (
-                        <tr key={w.id} className="hover:bg-slate-50/50 transition-all">
+                        <tr key={w.id} className="hover:bg-slate-50/50 transition-all cursor-pointer" onClick={() => setSelectedSale(w)}>
                           <td className="px-6 py-4 font-bold text-ink">#{w.id}</td>
                           <td className="px-6 py-4 text-sm font-medium text-ink/70">
                             {new Date(w.created_at).toLocaleString('es-CL', {
@@ -1223,6 +1224,70 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
           ) : null}
         </div>
       </main>
+
+      {/* Modal de Detalle de Venta para Admin */}
+      {selectedSale && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-ink/5 relative overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-ink flex items-center gap-2">
+                Detalle de Venta #{selectedSale.id}
+              </h3>
+              <button 
+                onClick={() => setSelectedSale(null)}
+                className="text-ink/40 hover:text-ink text-sm font-semibold"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              <div>
+                <span className="text-[10px] font-bold text-ink/65 uppercase tracking-wider block mb-1">Fecha y Hora</span>
+                <p className="font-semibold text-ink">
+                  {new Date(selectedSale.created_at).toLocaleString('es-CL', {
+                    day: '2-digit', month: 'long', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  })}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-ink/65 uppercase tracking-wider block mb-1">Cliente / Correo</span>
+                <p className="font-semibold text-ink">
+                  {selectedSale.customer_email || selectedSale.user_name || (selectedSale.user_id ? `Cliente ID: ${selectedSale.user_id}` : 'Cliente Web Anónimo')}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-ink/65 uppercase tracking-wider block mb-1">Método de Pago</span>
+                <p className="font-semibold text-ink uppercase">
+                  {selectedSale.payment_method === 'card' && '💳 Tarjeta de Crédito'}
+                  {selectedSale.payment_method === 'qr' && '📱 Código QR'}
+                  {selectedSale.payment_method === 'transfer' && '🏢 Transferencia Bancaria'}
+                  {!selectedSale.payment_method && '💼 Pago Integrado (Demo)'}
+                </p>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-ink/65 uppercase tracking-wider block mb-1">Tipo y Dirección de Entrega</span>
+                <div className="bg-paper p-4 rounded-2xl border border-ink/5">
+                  <p className="font-semibold text-ink">
+                    {selectedSale.delivery_address || 'No especificada (Compra Antigua)'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-ink/10 flex justify-between items-center">
+                <span className="font-bold text-ink text-base">Total Cobrado</span>
+                <span className="font-bold text-accent text-xl">
+                  ${Number(selectedSale.total_amount).toLocaleString('es-CL')}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -60,5 +60,9 @@ export interface WorkOrder {
   status: 'pending' | 'completed' | 'cancelled';
   created_at: string;
   user_name?: string;
+  customer_email?: string;
+  payment_method?: string;
+  delivery_type?: string;
+  delivery_address?: string;
 }
 

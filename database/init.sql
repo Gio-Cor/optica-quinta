@@ -67,6 +67,10 @@ CREATE TABLE IF NOT EXISTS work_orders (
     deposit_amount INTEGER DEFAULT 0,
     balance_due INTEGER NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
+    customer_email VARCHAR(255),
+    payment_method VARCHAR(100),
+    delivery_type VARCHAR(100),
+    delivery_address TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
