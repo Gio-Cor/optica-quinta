@@ -104,7 +104,8 @@ export default function App() {
       }
       return [...prev, { product, quantity, lensOption: optionToUse }];
     });
-    showAlert('¡Producto Agregado!', `Se agregó ${product.name} al carrito con cristales: ${optionToUse.name}`, 'success');
+    
+    setActiveTab('cart');
   };
 
   const handleRemoveFromCart = (index: number) => {
