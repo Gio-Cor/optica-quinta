@@ -1,13 +1,45 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Save, User as UserIcon, MapPin, CreditCard, Lock, Trash2 } from 'lucide-react';
+import { Save, User as UserIcon, MapPin, CreditCard, Lock, Trash2, ShoppingBag, Package, Truck, Building, Check } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { api } from '../services/api';
 import { showAlert } from '../utils/swal';
 import Swal from 'sweetalert2';
 
 export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUpdateUser: (u: User) => void, onLogout: () => void }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'delete'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'purchases' | 'password' | 'delete'>('profile');
+  const [userOrders, setUserOrders] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  React.useEffect(() => {
+    const loadOrders = async () => {
+      setLoadingOrders(true);
+      try {
+        const { data: profileData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_id', (await supabase.auth.getUser()).data.user?.id)
+          .single();
+
+        let query = supabase.from('work_orders').select('*');
+        if (profileData) {
+          query = query.or(`user_id.eq.${profileData.id},customer_email.eq.${user.email}`);
+        } else {
+          query = query.eq('customer_email', user.email);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        setUserOrders(data || []);
+      } catch (err) {
+        console.error("Error cargando compras del usuario:", err);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+    loadOrders();
+  }, [user.email]);
+
   const [formData, setFormData] = useState({
     full_name: user.full_name || '',
     address: user.address || '',
@@ -165,6 +197,12 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
             <UserIcon className="w-5 h-5" /> Datos Personales
           </button>
           <button 
+            onClick={() => setActiveTab('purchases')}
+            className={`w-full text-left px-5 py-3 rounded-xl flex items-center gap-3 transition-colors ${activeTab === 'purchases' ? 'bg-ink text-white shadow-md' : 'hover:bg-paper text-ink/70'}`}
+          >
+            <ShoppingBag className="w-5 h-5" /> Mis Compras
+          </button>
+          <button 
             onClick={() => setActiveTab('password')}
             className={`w-full text-left px-5 py-3 rounded-xl flex items-center gap-3 transition-colors ${activeTab === 'password' ? 'bg-ink text-white shadow-md' : 'hover:bg-paper text-ink/70'}`}
           >
@@ -243,6 +281,113 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
                   </button>
                 </div>
               </form>
+            ) : activeTab === 'purchases' ? (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold font-serif mb-2 flex items-center gap-2">
+                    <ShoppingBag className="w-5 h-5 text-accent" /> Historial y Seguimiento de Compras
+                  </h3>
+                  <p className="text-xs text-ink/50 font-medium mb-6">Revisa el estado de entrega y preparación de tus compras en tiempo real.</p>
+                </div>
+
+                {loadingOrders ? (
+                  <div className="text-center py-12 text-ink/50 font-bold">Cargando tus compras...</div>
+                ) : userOrders.length === 0 ? (
+                  <div className="text-center py-16 bg-paper/20 border border-dashed border-ink/10 rounded-3xl">
+                    <ShoppingBag className="w-12 h-12 text-ink/20 mx-auto mb-4" />
+                    <p className="text-sm font-bold text-ink/50">Aún no has realizado ninguna compra.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {userOrders.slice().reverse().map((w) => {
+                      const isPickup = w.delivery_address?.toLowerCase().includes('sucursal') || w.delivery_type === 'pickup';
+                      const currentStatus = w.status || 'preparing';
+                      return (
+                        <div key={w.id} className="bg-paper/20 border border-ink/5 rounded-3xl p-6 space-y-6">
+                          <div className="flex justify-between items-start flex-wrap gap-4">
+                            <div>
+                              <h4 className="font-bold text-ink text-base">Orden #{w.id}</h4>
+                              <p className="text-xs text-ink/50 mt-1">
+                                Comprado el {new Date(w.created_at).toLocaleDateString('es-CL', {
+                                  day: '2-digit', month: 'long', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit'
+                                })}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs text-ink/50 block font-medium">Monto Total</span>
+                              <span className="font-bold text-accent text-lg">${Number(w.total_amount).toLocaleString('es-CL')}</span>
+                            </div>
+                          </div>
+
+                          {/* Stepper Visual de Seguimiento */}
+                          <div className="pt-4 border-t border-ink/5 relative">
+                            <div className="flex justify-between items-center relative">
+                              {/* Línea de Fondo */}
+                              <div className="absolute left-8 right-8 top-4 h-0.5 bg-ink/10 -translate-y-1/2 z-0" />
+                              {/* Línea de Progreso Activa */}
+                              <div 
+                                className="absolute left-8 top-4 h-0.5 bg-accent -translate-y-1/2 z-0 transition-all duration-500" 
+                                style={{
+                                  width: currentStatus === 'delivered' || currentStatus === 'completed'
+                                    ? 'calc(100% - 64px)'
+                                    : currentStatus === 'in_transit' || currentStatus === 'ready_for_pickup'
+                                    ? '50%'
+                                    : '0%'
+                                }}
+                              />
+
+                              {/* Paso 1: En Preparación */}
+                              <div className="flex flex-col items-center z-10 relative">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                                  currentStatus === 'preparing' || currentStatus === 'pending' || currentStatus === 'in_transit' || currentStatus === 'ready_for_pickup' || currentStatus === 'delivered' || currentStatus === 'completed'
+                                    ? 'bg-accent border-accent text-white shadow-lg shadow-accent/20'
+                                    : 'bg-white border-ink/20 text-ink/40'
+                                }`}>
+                                  <Package className="w-4 h-4" />
+                                </div>
+                                <span className="text-[10px] font-bold text-ink/70 mt-2">En Preparación</span>
+                              </div>
+
+                              {/* Paso 2: En Camino / Listo para Retiro */}
+                              <div className="flex flex-col items-center z-10 relative">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                                  currentStatus === 'in_transit' || currentStatus === 'ready_for_pickup' || currentStatus === 'delivered' || currentStatus === 'completed'
+                                    ? 'bg-accent border-accent text-white shadow-lg shadow-accent/20'
+                                    : 'bg-white border-ink/20 text-ink/40'
+                                }`}>
+                                  {isPickup ? <Building className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
+                                </div>
+                                <span className="text-[10px] font-bold text-ink/70 mt-2">
+                                  {isPickup ? 'Listo para Retirar' : 'En Ruta'}
+                                </span>
+                              </div>
+
+                              {/* Paso 3: Entregado / Recibido */}
+                              <div className="flex flex-col items-center z-10 relative">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                                  currentStatus === 'delivered' || currentStatus === 'completed'
+                                    ? 'bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20'
+                                    : 'bg-white border-ink/20 text-ink/40'
+                                }`}>
+                                  <Check className="w-4 h-4" />
+                                </div>
+                                <span className="text-[10px] font-bold text-ink/70 mt-2">Recibido</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Info de Despacho */}
+                          <div className="bg-paper p-4 rounded-2xl border border-ink/5 text-xs space-y-1">
+                            <p className="font-bold text-ink/80 uppercase tracking-wider text-[9px] text-accent">Detalles de la Entrega</p>
+                            <p className="text-ink/70 font-semibold">{w.delivery_address || 'Retiro en Tienda - Casa Central / No especificado'}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             ) : activeTab === 'password' ? (
               <div className="space-y-10">
                 {/* Sección Correo Electrónico */}

@@ -1271,11 +1271,36 @@ export const AdminPanel = ({ loggedInUser, onLogin, onLogout }: { loggedInUser?:
 
               <div>
                 <span className="text-[10px] font-bold text-ink/65 uppercase tracking-wider block mb-1">Tipo y Dirección de Entrega</span>
-                <div className="bg-paper p-4 rounded-2xl border border-ink/5">
+                <div className="bg-paper p-4 rounded-2xl border border-ink/5 mb-3">
                   <p className="font-semibold text-ink">
                     {selectedSale.delivery_address || 'No especificada (Compra Antigua)'}
                   </p>
                 </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-ink/65 uppercase tracking-wider block mb-1">Estado del Pedido</span>
+                <select 
+                  value={selectedSale.status || 'preparing'}
+                  onChange={async (e) => {
+                    const newStatus = e.target.value;
+                    try {
+                      await api.updateWorkOrderStatus(selectedSale.id, newStatus);
+                      setSelectedSale(prev => prev ? { ...prev, status: newStatus as any } : null);
+                      setWorkOrders(prev => prev.map(w => w.id === selectedSale.id ? { ...w, status: newStatus as any } : w));
+                      showAlert('Estado Actualizado', 'El estado del pedido se ha actualizado correctamente.', 'success');
+                    } catch (err: any) {
+                      showAlert('Error', 'No se pudo actualizar el estado: ' + err.message, 'error');
+                    }
+                  }}
+                  className="w-full bg-paper border-2 border-ink/5 rounded-xl px-4 py-3 text-xs focus:ring-1 ring-accent outline-none font-bold text-ink"
+                >
+                  <option value="preparing">📦 En preparación</option>
+                  <option value="in_transit">🚚 En ruta (Despacho)</option>
+                  <option value="ready_for_pickup">🏪 Listo para retirar en tienda</option>
+                  <option value="delivered">✅ Recibido / Entregado</option>
+                  <option value="cancelled">❌ Cancelado</option>
+                </select>
               </div>
 
               <div className="pt-4 border-t border-ink/10 flex justify-between items-center">

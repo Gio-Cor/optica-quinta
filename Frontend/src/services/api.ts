@@ -286,7 +286,7 @@ export const api = {
         total_amount: totalAmount,
         deposit_amount: totalAmount,
         balance_due: 0,
-        status: 'completed',
+        status: 'preparing',
         customer_email: email || null,
         payment_method: paymentMethod || null,
         delivery_type: deliveryType || null,
@@ -349,5 +349,13 @@ export const api = {
     if (error) {
       throw new Error(error.message);
     }
+  },
+
+  updateWorkOrderStatus: async (id: number, status: string): Promise<void> => {
+    const { error } = await supabase
+      .from('work_orders')
+      .update({ status })
+      .eq('id', id);
+    if (error) throw new Error(error.message);
   },
 };
