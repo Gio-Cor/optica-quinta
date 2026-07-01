@@ -91,9 +91,22 @@ export default function App() {
     window.history.pushState({}, '', '/');
   };
 
-  const handleAddToCart = (product: Product, quantity: number = 1, lensOption?: LensOption) => {
+  const handleAddToCart = (product: Product, quantity: number = 1, lensOption?: LensOption, redirect: boolean = true): boolean => {
     const defaultLensOption: LensOption = { id: 1, name: 'Solo Armazón', price_add: 0, is_active: true };
     const optionToUse = lensOption || defaultLensOption;
+
+    const optionName = optionToUse.name.toLowerCase();
+    const requiresAuth = optionName.includes('receta') || optionName.includes('cita');
+
+    if (requiresAuth && !loggedInUser) {
+      showAlert(
+        'Identificación Requerida',
+        'Para comprar productos con receta médica y cita en tienda debes iniciar sesión.',
+        'warning'
+      );
+      setActiveTab('admin');
+      return false;
+    }
 
     setCartItems(prev => {
       const existing = prev.findIndex(item => item.product.id === product.id && item.lensOption.id === optionToUse.id);
@@ -105,7 +118,10 @@ export default function App() {
       return [...prev, { product, quantity, lensOption: optionToUse }];
     });
     
-    setActiveTab('cart');
+    if (redirect) {
+      setActiveTab('cart');
+    }
+    return true;
   };
 
   const handleRemoveFromCart = (index: number) => {
@@ -252,9 +268,11 @@ export default function App() {
                 price_add: 0,
                 is_active: true
               };
-              handleAddToCart(p, 1, reservationOption);
-              handleCloseDetail();
-              setActiveTab('appointments');
+              const added = handleAddToCart(p, 1, reservationOption, false);
+              if (added) {
+                handleCloseDetail();
+                setActiveTab('appointments');
+              }
             }}
           />
         )}
