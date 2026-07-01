@@ -25,9 +25,16 @@ export const AppointmentSection = () => {
     return `${yyyy}-${mm}-${dd}`;
   };
 
+  const parseLocalDate = (dateStr: string) => {
+    if (!dateStr) return null;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   const getAvailableTimes = (dateStr: string) => {
     if (!dateStr) return [];
-    const selectedDate = new Date(dateStr + 'T00:00:00');
+    const selectedDate = parseLocalDate(dateStr);
+    if (!selectedDate) return [];
     const dayOfWeek = selectedDate.getDay(); // 0 = Domingo, 6 = Sábado, 1-5 = Lunes-Viernes
 
     if (dayOfWeek === 0) return []; // Cerrado los domingos
@@ -76,16 +83,15 @@ export const AppointmentSection = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Validar que la fecha sea desde mañana en adelante
-    const selectedDate = new Date(formData.date + 'T00:00:00');
-    const tomorrowDate = new Date();
-    tomorrowDate.setHours(0, 0, 0, 0);
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-
-    if (selectedDate < tomorrowDate) {
+    // 1. Validar que la fecha sea desde mañana en adelante (comparación de strings para evitar zona horaria)
+    const tomorrowStr = getTomorrowStr();
+    if (formData.date < tomorrowStr) {
       showAlert('Fecha no válida', 'Las citas solo se pueden agendar a partir del día de mañana.', 'warning');
       return;
     }
+
+    const selectedDate = parseLocalDate(formData.date);
+    if (!selectedDate) return;
 
     // 2. Validar que no sea día domingo (cerrado)
     const dayOfWeek = selectedDate.getDay(); // 0 = Domingo, 6 = Sábado, 1-5 = Lunes-Viernes
