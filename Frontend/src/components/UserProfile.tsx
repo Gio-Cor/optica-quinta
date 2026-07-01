@@ -20,6 +20,17 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
     confirmPassword: ''
   });
 
+  const [newEmail, setNewEmail] = useState('');
+
+  const obfuscateEmail = (emailStr: string) => {
+    const [localPart, domain] = emailStr.split('@');
+    if (!localPart || !domain) return emailStr;
+    if (localPart.length <= 2) {
+      return `${localPart[0]}*@${domain}`;
+    }
+    return `${localPart.substring(0, 2)}****${localPart.substring(localPart.length - 1)}@${domain}`;
+  };
+
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -41,8 +52,23 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
     if (passData.newPassword !== passData.confirmPassword) {
       return showAlert('Error', 'Las contraseñas no coinciden', 'error');
     }
+
+    if (!passData.currentPassword) {
+      return showAlert('Error', 'Debes ingresar tu contraseña actual', 'error');
+    }
     
     try {
+      // Re-autenticar al usuario para verificar la contraseña actual
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: passData.currentPassword
+      });
+      
+      if (signInError) {
+        throw new Error('La contraseña actual es incorrecta.');
+      }
+
+      // Actualizar la contraseña
       const { error } = await supabase.auth.updateUser({
         password: passData.newPassword
       });
@@ -51,6 +77,38 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
       
       showAlert('Contraseña Actualizada', 'Contraseña actualizada correctamente', 'success');
       setPassData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err: any) {
+      showAlert('Error', err.message, 'error');
+    }
+  };
+
+  const handleEmailSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail) {
+      return showAlert('Error', 'Por favor ingresa tu nuevo correo electrónico', 'error');
+    }
+    
+    try {
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail
+      });
+      
+      if (error) throw error;
+      
+      showAlert('Correo de Confirmación', 'Se ha enviado un correo de confirmación al nuevo y al anterior correo electrónico para aplicar el cambio.', 'success');
+      setNewEmail('');
+    } catch (err: any) {
+      showAlert('Error', err.message, 'error');
+    }
+  };
+
+  const handleForgotPasswordReset = async () => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      showAlert('Correo Enviado', 'Se ha enviado un correo con instrucciones para restablecer tu contraseña.', 'success');
     } catch (err: any) {
       showAlert('Error', err.message, 'error');
     }
@@ -186,36 +244,93 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
                 </div>
               </form>
             ) : activeTab === 'password' ? (
-              <form onSubmit={handlePasswordSave} className="space-y-6">
-                <h3 className="text-xl font-bold font-serif mb-6 flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-accent" /> Cambiar Contraseña
-                </h3>
+              <div className="space-y-10">
+                {/* Sección Correo Electrónico */}
                 <div>
-                  <label className="block text-xs font-bold tracking-widest uppercase text-ink/60 mb-2">Nueva Contraseña</label>
-                  <input 
-                    type="password"
-                    required
-                    value={passData.newPassword} 
-                    onChange={e => setPassData({...passData, newPassword: e.target.value})} 
-                    className="w-full border-2 border-ink/10 focus:border-accent focus:bg-white bg-ink/5 p-3 rounded-xl transition-all" 
-                  />
+                  <h3 className="text-xl font-bold font-serif mb-6 flex items-center gap-2">
+                    <UserIcon className="w-5 h-5 text-accent" /> Correo Electrónico
+                  </h3>
+                  <div className="bg-ink/5 rounded-2xl p-5 border border-ink/5 mb-6">
+                    <p className="text-sm font-medium text-ink/70">
+                      Correo actual: <span className="font-bold text-ink">{obfuscateEmail(user.email)}</span>
+                    </p>
+                  </div>
+                  <form onSubmit={handleEmailSave} className="space-y-6">
+                    <div>
+                      <label className="block text-xs font-bold tracking-widest uppercase text-ink/60 mb-2">Nuevo Correo Electrónico</label>
+                      <input 
+                        type="email"
+                        required
+                        value={newEmail}
+                        onChange={e => setNewEmail(e.target.value)}
+                        className="w-full border-2 border-ink/10 focus:border-accent focus:bg-white bg-ink/5 p-3 rounded-xl transition-all" 
+                        placeholder="nuevo-correo@ejemplo.com"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button type="submit" className="bg-accent text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-ink transition-colors flex items-center gap-2">
+                        <Save className="w-5 h-5" /> Actualizar Correo
+                      </button>
+                    </div>
+                  </form>
                 </div>
+
+                <hr className="border-ink/5" />
+
+                {/* Sección Cambiar Contraseña */}
                 <div>
-                  <label className="block text-xs font-bold tracking-widest uppercase text-ink/60 mb-2">Confirmar Nueva Contraseña</label>
-                  <input 
-                    type="password"
-                    required
-                    value={passData.confirmPassword} 
-                    onChange={e => setPassData({...passData, confirmPassword: e.target.value})} 
-                    className="w-full border-2 border-ink/10 focus:border-accent focus:bg-white bg-ink/5 p-3 rounded-xl transition-all" 
-                  />
+                  <h3 className="text-xl font-bold font-serif mb-6 flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-accent" /> Cambiar Contraseña
+                  </h3>
+                  <form onSubmit={handlePasswordSave} className="space-y-6">
+                    <div>
+                      <label className="block text-xs font-bold tracking-widest uppercase text-ink/60 mb-2">Contraseña Actual</label>
+                      <input 
+                        type="password"
+                        required
+                        value={passData.currentPassword}
+                        onChange={e => setPassData({...passData, currentPassword: e.target.value})}
+                        className="w-full border-2 border-ink/10 focus:border-accent focus:bg-white bg-ink/5 p-3 rounded-xl transition-all" 
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold tracking-widest uppercase text-ink/60 mb-2">Nueva Contraseña</label>
+                      <input 
+                        type="password"
+                        required
+                        value={passData.newPassword} 
+                        onChange={e => setPassData({...passData, newPassword: e.target.value})} 
+                        className="w-full border-2 border-ink/10 focus:border-accent focus:bg-white bg-ink/5 p-3 rounded-xl transition-all" 
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold tracking-widest uppercase text-ink/60 mb-2">Confirmar Nueva Contraseña</label>
+                      <input 
+                        type="password"
+                        required
+                        value={passData.confirmPassword} 
+                        onChange={e => setPassData({...passData, confirmPassword: e.target.value})} 
+                        className="w-full border-2 border-ink/10 focus:border-accent focus:bg-white bg-ink/5 p-3 rounded-xl transition-all" 
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center pt-4">
+                      <button
+                        type="button"
+                        onClick={handleForgotPasswordReset}
+                        className="text-sm text-accent hover:underline font-semibold"
+                      >
+                        ¿Olvidaste tu contraseña? Restablecer por correo
+                      </button>
+                      <button type="submit" className="bg-accent text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-ink transition-colors flex items-center gap-2">
+                        <Save className="w-5 h-5" /> Actualizar Contraseña
+                      </button>
+                    </div>
+                  </form>
                 </div>
-                <div className="flex justify-end pt-4">
-                  <button type="submit" className="bg-accent text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-ink transition-colors flex items-center gap-2">
-                    <Save className="w-5 h-5" /> Actualizar Contraseña
-                  </button>
-                </div>
-              </form>
+              </div>
             ) : (
               <div className="space-y-6">
                 <h3 className="text-xl font-bold font-serif mb-6 flex items-center gap-2 text-red-600">
