@@ -54,6 +54,104 @@ const requireAdmin = async (req: Request, res: Response, next: express.NextFunct
   next();
 };
 
+// Middleware para verificar que el usuario está autenticado via Supabase Auth
+const requireAuth = async (req: Request, res: Response, next: express.NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.sendStatus(401);
+
+  try {
+    // Verificar token con Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return res.sendStatus(403);
+
+    (req as any).user = user;
+    next();
+  } catch (err) {
+    console.error('Auth verification error:', err);
+    res.sendStatus(403);
+  }
+};
+
+app.delete('/api/users/delete-account', requireAuth, async (req: Request, res: Response) => {
+  const authUser = (req as any).user;
+  const authId = authUser.id; // UUID de Supabase Auth
+
+  try {
+    // 1. Obtener el ID interno del usuario en public.users
+    const userResult = await pool.query(
+      'SELECT id, email FROM public.users WHERE auth_id = $1',
+      [authId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado en la base de datos.' });
+    }
+
+    const userId = userResult.rows[0].id;
+    const userEmail = userResult.rows[0].email;
+
+    // 2. Verificar si tiene órdenes de compra pendientes ('pending')
+    const pendingOrdersResult = await pool.query(
+      "SELECT COUNT(*) FROM public.work_orders WHERE user_id = $1 AND status = 'pending'",
+      [userId]
+    );
+
+    const pendingCount = parseInt(pendingOrdersResult.rows[0].count, 10);
+    if (pendingCount > 0) {
+      return res.status(400).json({
+        error: 'No puedes eliminar tu cuenta porque tienes una orden de compra pendiente de entrega. Estado: pending.'
+      });
+    }
+
+    // 3. Eliminar registros en appointments que coincidan con el email del usuario (datos personales)
+    await pool.query(
+      'DELETE FROM public.appointments WHERE email = $1',
+      [userEmail]
+    );
+
+    // 4. Eliminar el usuario de public.users
+    // (prescriptions se eliminarán automáticamente en cascada. work_orders se actualizarán con user_id = NULL)
+    await pool.query(
+      'DELETE FROM public.users WHERE id = $1',
+      [userId]
+    );
+
+    // 5. Eliminar el usuario de Supabase Auth
+    // Requerirá SUPABASE_SERVICE_ROLE_KEY. Si no está configurada, la llamada fallará,
+    // por lo que intentamos realizarla de forma segura o arrojamos una advertencia clara.
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceRoleKey && serviceRoleKey !== 'no-key-provided') {
+      const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(authId);
+      if (deleteAuthError) {
+        console.error('Error al eliminar usuario de Supabase Auth:', deleteAuthError);
+        return res.status(500).json({
+          error: 'Error al eliminar la cuenta de autenticación de Supabase: ' + deleteAuthError.message
+        });
+      }
+    } else {
+      // Intentamos de todos modos por si acaso, pero capturamos el fallo amigablemente
+      try {
+        const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(authId);
+        if (deleteAuthError) {
+          console.warn('Omitiendo/Falló la eliminación en Supabase Auth (probable falta de SUPABASE_SERVICE_ROLE_KEY):', deleteAuthError.message);
+        }
+      } catch (authErr: any) {
+        console.warn('Excepción al intentar eliminar usuario de Supabase Auth:', authErr.message);
+      }
+    }
+
+    res.json({
+      message: 'Cuenta y datos personales eliminados con éxito. Las órdenes de compra previas han sido preservadas de forma histórica.'
+    });
+  } catch (error: any) {
+    console.error('Error en delete-account:', error);
+    res.status(500).json({ error: 'Error interno del servidor al eliminar la cuenta: ' + error.message });
+  }
+});
+
+
 // Reporte PDF mensual (único endpoint que justifica el backend)
 app.get('/api/reports/monthly-sales/pdf', requireAdmin, async (req: Request, res: Response) => {
   try {

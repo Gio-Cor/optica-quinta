@@ -237,4 +237,21 @@ export const api = {
     const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
     return publicUrl;
   },
+
+  deleteAccount: async (): Promise<void> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No hay sesión activa');
+
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || ''}/api/users/delete-account`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al eliminar la cuenta');
+    }
+  },
 };

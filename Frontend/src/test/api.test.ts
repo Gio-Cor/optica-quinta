@@ -156,4 +156,28 @@ describe('api service', () => {
     expect(supabase.from).toHaveBeenCalledWith('products');
     expect(eqMock).toHaveBeenCalledWith('id', 42);
   });
+
+  it('deleteAccount: debe llamar al backend con el token de sesión para eliminar la cuenta', async () => {
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: {
+        session: { access_token: 'valid-jwt-token' }
+      }
+    } as any);
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'Cuenta eliminada' })
+    });
+    global.fetch = mockFetch;
+
+    await api.deleteAccount();
+
+    expect(supabase.auth.getSession).toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/api/users/delete-account'), {
+      method: 'DELETE',
+      headers: {
+        'Authorization': 'Bearer valid-jwt-token'
+      }
+    });
+  });
 });

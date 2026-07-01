@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS prescriptions (
 
 CREATE TABLE IF NOT EXISTS work_orders (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     prescription_id INTEGER REFERENCES prescriptions(id) ON DELETE SET NULL,
     total_amount INTEGER NOT NULL,
     deposit_amount INTEGER DEFAULT 0,

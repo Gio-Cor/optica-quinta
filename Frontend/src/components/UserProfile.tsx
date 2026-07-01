@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { Save, User as UserIcon, MapPin, CreditCard, Lock } from 'lucide-react';
+import { Save, User as UserIcon, MapPin, CreditCard, Lock, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { api } from '../services/api';
 
 export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUpdateUser: (u: User) => void, onLogout: () => void }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'delete'>('profile');
   const [formData, setFormData] = useState({
     full_name: user.full_name || '',
     address: user.address || '',
@@ -53,6 +54,26 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
     }
   };
 
+  const handleDeleteAccount = async () => {
+    const doubleConfirm = confirm(
+      '¿Estás seguro de que deseas eliminar tu cuenta permanentemente?\n\nEsta acción es irreversible y eliminará todos tus datos personales, incluyendo tu perfil y recetas médicas.'
+    );
+    if (!doubleConfirm) return;
+
+    const tripleConfirm = confirm(
+      'Por favor, confirma una vez más: ¿Realmente deseas eliminar tu cuenta y todos tus datos personales?'
+    );
+    if (!tripleConfirm) return;
+
+    try {
+      await api.deleteAccount();
+      alert('Tu cuenta y datos personales han sido eliminados correctamente.');
+      onLogout();
+    } catch (err: any) {
+      alert('Error al eliminar la cuenta: ' + err.message);
+    }
+  };
+
   return (
     <div className="pt-32 pb-20 px-6 max-w-5xl mx-auto min-h-screen">
       <div className="flex justify-between items-center mb-12">
@@ -81,6 +102,12 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
             className={`w-full text-left px-5 py-3 rounded-xl flex items-center gap-3 transition-colors ${activeTab === 'password' ? 'bg-ink text-white shadow-md' : 'hover:bg-paper text-ink/70'}`}
           >
             <Lock className="w-5 h-5" /> Seguridad
+          </button>
+          <button 
+            onClick={() => setActiveTab('delete')}
+            className={`w-full text-left px-5 py-3 rounded-xl flex items-center gap-3 transition-colors ${activeTab === 'delete' ? 'bg-red-600 text-white shadow-md' : 'hover:bg-red-50 text-red-600 font-medium'}`}
+          >
+            <Trash2 className="w-5 h-5" /> Eliminar Cuenta
           </button>
         </div>
 
@@ -149,7 +176,7 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
                   </button>
                 </div>
               </form>
-            ) : (
+            ) : activeTab === 'password' ? (
               <form onSubmit={handlePasswordSave} className="space-y-6">
                 <h3 className="text-xl font-bold font-serif mb-6 flex items-center gap-2">
                   <Lock className="w-5 h-5 text-accent" /> Cambiar Contraseña
@@ -180,6 +207,37 @@ export const UserProfile = ({ user, onUpdateUser, onLogout }: { user: User, onUp
                   </button>
                 </div>
               </form>
+            ) : (
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold font-serif mb-6 flex items-center gap-2 text-red-600">
+                  <Trash2 className="w-5 h-5" /> Eliminar Cuenta
+                </h3>
+                
+                <div className="bg-red-50 border border-red-200 rounded-[20px] p-6 text-red-800 text-sm leading-relaxed space-y-4">
+                  <p className="font-bold text-base flex items-center gap-2">
+                    <Trash2 className="w-5 h-5 text-red-600" /> ¡Advertencia Importante!
+                  </p>
+                  <p>
+                    Al eliminar tu cuenta, todos tus datos personales, direcciones y recetas médicas serán eliminados permanentemente de nuestra base de datos. <strong>Esta acción no se puede deshacer.</strong>
+                  </p>
+                  <p>
+                    Tus órdenes de compra previas <strong>no serán eliminadas</strong> para mantener los registros de facturación de la tienda, pero quedarán guardadas de forma histórica y anónima (sin vinculación a tus datos personales).
+                  </p>
+                  <p className="font-semibold border-t border-red-200 pt-3">
+                    Nota: Si tienes alguna orden de compra pendiente de entrega, no podrás eliminar tu cuenta hasta que recibas tu producto.
+                  </p>
+                </div>
+
+                <div className="flex justify-end pt-6 border-t border-ink/5">
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    className="bg-red-600 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  >
+                    <Trash2 className="w-5 h-5" /> Eliminar mi cuenta permanentemente
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
