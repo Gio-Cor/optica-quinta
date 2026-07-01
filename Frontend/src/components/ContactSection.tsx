@@ -12,8 +12,21 @@ export const ContactSection = () => (
               <MapPin className="text-accent" />
             </div>
             <div>
-              <h4 className="font-bold mb-1">Dirección</h4>
-              <p className="text-ink/60">Manuel Bulnes 920, Local 3, <br />Quilpué, Valparaíso</p>
+              <h4 className="font-bold mb-3">Nuestras Sucursales</h4>
+              <div className="space-y-4">
+                <div>
+                  <h5 className="font-bold text-[11px] uppercase tracking-wider text-accent">Sucursal Quilpué</h5>
+                  <p className="text-ink/60 text-sm">Manuel Bulnes 920, Local 3, Quilpué</p>
+                </div>
+                <div>
+                  <h5 className="font-bold text-[11px] uppercase tracking-wider text-accent">Sucursal Concón</h5>
+                  <p className="text-ink/60 text-sm">Av. Manantiales 945, Concón</p>
+                </div>
+                <div>
+                  <h5 className="font-bold text-[11px] uppercase tracking-wider text-accent">Sucursal Quintero</h5>
+                  <p className="text-ink/60 text-sm">Cabo Ortiz 149, Quintero</p>
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex items-start gap-4">
