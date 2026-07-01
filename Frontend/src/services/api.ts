@@ -256,8 +256,14 @@ export const api = {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Error al eliminar la cuenta');
+      let errorMessage = 'Error al eliminar la cuenta';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch (e) {
+        errorMessage = `${response.status} ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
     }
   },
 };
