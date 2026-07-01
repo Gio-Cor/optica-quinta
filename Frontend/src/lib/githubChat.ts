@@ -16,14 +16,14 @@ export const chatWithGithubModels = async (currentMessage: string, history: any[
             systemPrompt += `\n\nTienes acceso al catálogo completo de la tienda en tiempo real (lentes, armazones y accesorios). Utiliza la siguiente lista de productos e inventario para responder las preguntas de los clientes de forma precisa, recomendando productos adecuados, mencionando disponibilidad (stock), características técnicas (como filtro azul, polarizados, antirreflejo, etc.), marcas y precios:\n${productsContext}\n\nNota: Si el cliente pregunta por un producto que no está en la lista o pregunta si vendes algo que no coincide con las descripciones, responde amablemente indicando qué productos similares tienes disponibles en el catálogo.`;
         }
 
-        const developerMessage = {
-            role: "developer",
+        const systemMessage = {
+            role: "system",
             content: systemPrompt
         };
 
-        // Juntamos las instrucciones del desarrollador, el historial y el mensaje actual
+        // Juntamos las instrucciones del sistema, el historial y el mensaje actual
         const fullMessages = [
-            developerMessage,
+            systemMessage,
             ...history,
             { role: "user", content: currentMessage }
         ];

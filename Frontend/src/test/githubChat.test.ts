@@ -42,7 +42,7 @@ describe('githubChat service', () => {
     const callArgs = mockCreate.mock.calls[0][0];
     expect(callArgs.model).toBe('gpt-4o-mini');
     expect(callArgs.messages).toHaveLength(3); // Developer instruction + 1 historial + 1 usuario
-    expect(callArgs.messages[0].role).toBe('developer');
+    expect(callArgs.messages[0].role).toBe('system');
     expect(callArgs.messages[2].content).toBe(currentMessage);
     expect(result).toBe('Hola, soy un optometrista. Te sugiero lentes con filtro azul para pantallas.');
     // Caso Error 429 (Límite de cuota)
